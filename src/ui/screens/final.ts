@@ -22,6 +22,7 @@ export function renderFinalScreen(
 
   root.innerHTML = `
     <div class="final-inner">
+      <span class="tick tick--tl"></span><span class="tick tick--tr"></span><span class="tick tick--bl"></span><span class="tick tick--br"></span>
       <h2 class="final-title">ПРОВЕРКА ЗАВЕРШЕНА</h2>
       ${
         totals.timedOutRounds > 0

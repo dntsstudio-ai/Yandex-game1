@@ -1,0 +1,176 @@
+/*
+ * Кнопки, плашки и мелкие элементы интерфейса.
+ *
+ * Каждый элемент собран слоями: подложка-градиент, внутренняя светлая
+ * кромка сверху, тёмная снизу и внешняя тень. Если в проект добавлены
+ * графические ассеты, они подставляются через переменные --ui-* и
+ * заменяют нарисованные кодом рамки.
+ */
+:root {
+  --ui-panel-frame: none;
+  --ui-button-frame: none;
+  --ui-button-frame-slice: 26;
+  --ui-panel-frame-slice: 28;
+}
+
+/* ---------- кнопки ---------- */
+.btn {
+  isolation: isolate;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+}
+
+.btn--primary {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 42%),
+    linear-gradient(135deg, var(--red), #ff7a45);
+  text-shadow: 0 1px 2px rgba(120, 20, 24, 0.5);
+}
+
+.btn--ghost {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015)),
+    rgba(10, 13, 19, 0.5);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.btn--pass,
+.btn--stop {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
+}
+
+/* Значок перед подписью решения: «галочка» и «флаг». */
+.btn--pass::after,
+.btn--stop::after {
+  content: '';
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin-top: -8px;
+  background: currentColor;
+  opacity: 0.8;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  transform: none;
+  transition: transform 0.6s var(--ease);
+}
+
+.btn--pass::after {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 12.5l5 5L20 6.5' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 12.5l5 5L20 6.5' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.btn--stop::after {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 3v18M6 4.5c4-2.4 8 2.4 12 0V13c-4 2.4-8-2.4-12 0z' fill='%23000' stroke='%23000' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 3v18M6 4.5c4-2.4 8 2.4 12 0V13c-4 2.4-8-2.4-12 0z' fill='%23000' stroke='%23000' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.btn--stop:hover::after {
+  animation: flag-wave 1.2s var(--ease) infinite;
+}
+
+.btn--pass,
+.btn--stop {
+  padding-left: 44px;
+}
+
+/* Графическая рамка кнопки, если добавлен ассет. */
+body.has-ui-button-frame .btn--primary,
+body.has-ui-button-frame .btn--pass,
+body.has-ui-button-frame .btn--stop {
+  border-image: var(--ui-button-frame) var(--ui-button-frame-slice) fill stretch;
+  border-width: calc(var(--ui-button-frame-slice) * 1px);
+  border-style: solid;
+  border-radius: 0;
+  background: none;
+}
+
+body.has-ui-button-frame .btn::before {
+  box-shadow: none;
+}
+
+/* ---------- уголки на плашках ----------
+   Отдельные элементы, а не псевдоэлементы: ::before и ::after у этих
+   панелей уже заняты световой кромкой. */
+.tick {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  border: 1px solid var(--line-strong);
+  pointer-events: none;
+  opacity: 0.75;
+}
+
+.tick--tl { top: 10px; left: 10px; border-right: 0; border-bottom: 0; }
+.tick--tr { top: 10px; right: 10px; border-left: 0; border-bottom: 0; }
+.tick--bl { bottom: 10px; left: 10px; border-right: 0; border-top: 0; }
+.tick--br { bottom: 10px; right: 10px; border-left: 0; border-top: 0; }
+
+/* Графическая рамка панели, если добавлен ассет. */
+body.has-ui-panel-frame .result-card,
+body.has-ui-panel-frame .final-inner,
+body.has-ui-panel-frame .modal {
+  border-image: var(--ui-panel-frame) var(--ui-panel-frame-slice) fill stretch;
+  border-width: calc(var(--ui-panel-frame-slice) * 1px);
+  border-style: solid;
+  border-radius: 0;
+}
+
+/* ---------- HUD: разделители и акценты ---------- */
+.hud-item + .hud-item {
+  padding-left: clamp(10px, 2vw, 22px);
+  border-left: 1px solid var(--line);
+}
+
+.hud-item--time {
+  border-right: 0;
+  padding-right: 0;
+}
+
+.hud-value {
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
+}
+
+/* ---------- штампы: подмена графикой ---------- */
+body.has-ui-stamps .stamp--stop { --ui-stamp: var(--ui-stamp-stop); }
+body.has-ui-stamps .stamp--pass { --ui-stamp: var(--ui-stamp-pass); }
+body.has-ui-stamps .stamp--warn { --ui-stamp: var(--ui-stamp-warn); }
+body.has-ui-stamps .stamp--fail { --ui-stamp: var(--ui-stamp-fail); }
+
+body.has-ui-stamps .stamp {
+  border: 0;
+  padding: 0;
+  width: clamp(110px, 16vw, 168px);
+  aspect-ratio: 2.1 / 1;
+  background-image: var(--ui-stamp, none);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+body.has-ui-stamps .stamp .stamp-text,
+body.has-ui-stamps .stamp::after {
+  display: none;
+}
+
+@keyframes flag-wave {
+  0%, 100% { transform: skewY(0deg); }
+  50% { transform: skewY(-8deg); }
+}

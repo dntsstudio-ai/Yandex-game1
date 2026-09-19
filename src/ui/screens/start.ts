@@ -2,6 +2,7 @@
 import { SCORING } from '../../core/rules';
 import { h } from '../dom';
 import { createMenuScene, type MenuScene } from '../menuScene';
+import { MEDIA, assetExists, assetUrl } from '../../core/assets';
 
 export interface StartScreenHandlers {
   onStart: () => void;
@@ -38,6 +39,13 @@ export function renderStartScreen(
       </ul>
     </div>
   `;
+
+  // логотип-картинка заменяет нарисованный флаг, если файл добавлен
+  void assetExists(MEDIA.logo, 'image').then((exists) => {
+    if (!exists) return;
+    const mark = root.querySelector('.flag-mark');
+    if (mark) mark.innerHTML = `<img class="logo-image" src="${assetUrl(MEDIA.logo)}" alt="" />`;
+  });
 
   const scene = createMenuScene();
   root.prepend(scene.root);

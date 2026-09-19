@@ -17,6 +17,7 @@ import { renderRoundResult } from './screens/roundResult';
 import { renderSettings } from './screens/settings';
 import { renderStartScreen } from './screens/start';
 import type { MenuScene } from './menuScene';
+import { setupViewport } from './viewport';
 
 export class App {
   private readonly engine: GameEngine;
@@ -27,11 +28,17 @@ export class App {
   private lastSecond = -1;
   private menuScene: MenuScene | null = null;
 
-  constructor(root: HTMLElement, engine = new GameEngine()) {
-    this.root = root;
+  constructor(host: HTMLElement, engine = new GameEngine()) {
+    // Сцена фиксированного размера: в альбомном режиме телефона она
+    // масштабируется целиком, поэтому всё внутри живёт в её координатах.
+    const stage = h('div', 'app-stage');
+    host.replaceChildren(stage);
+
+    this.root = stage;
     this.engine = engine;
     this.floatLayer = h('div', 'float-layer');
-    document.body.appendChild(this.floatLayer);
+    stage.appendChild(this.floatLayer);
+    setupViewport(stage, stage);
 
     setMasterVolume(settings.get().volume);
     this.engine.subscribe((state) => this.onState(state));
@@ -65,7 +72,11 @@ export class App {
 
   private renderScreen(state: GameState): void {
     const next = this.buildScreen(state);
-    this.root.replaceChildren(next);
+    // слой всплывающих очков и подсказки остаются на месте
+    for (const node of Array.from(this.root.children)) {
+      if (node !== this.floatLayer && !node.classList.contains('rotate-hint')) node.remove();
+    }
+    this.root.prepend(next);
     next.classList.add('screen-enter');
   }
 
@@ -170,7 +181,7 @@ export class App {
   private openAbout(): void {
     sfx.play('click');
     const overlay = renderAbout(() => overlay.remove());
-    document.body.appendChild(overlay);
+    this.root.appendChild(overlay);
   }
 
   private openSettings(): void {
@@ -184,16 +195,20 @@ export class App {
         if (next.sound) sfx.play('click');
       },
     );
-    document.body.appendChild(overlay);
+    this.root.appendChild(overlay);
   }
 
   /** Всплывающие очки рядом с местом клика. */
   private showFloat(element: HTMLElement, points: number): void {
     const rect = element.getBoundingClientRect();
+    const layer = this.floatLayer.getBoundingClientRect();
+    // сцена может быть уменьшена — переводим экранные координаты в её систему
+    const scale = layer.width / Math.max(1, this.floatLayer.offsetWidth);
+
     const node = h('span', `float ${points >= 0 ? 'float--plus' : 'float--minus'}`);
     node.textContent = `${points > 0 ? '+' : ''}${points}`;
-    node.style.left = `${rect.left + rect.width / 2}px`;
-    node.style.top = `${rect.top}px`;
+    node.style.left = `${(rect.left + rect.width / 2 - layer.left) / scale}px`;
+    node.style.top = `${(rect.top - layer.top) / scale}px`;
     this.floatLayer.appendChild(node);
     window.setTimeout(() => node.remove(), 900);
   }

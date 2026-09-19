@@ -51,6 +51,7 @@ export function renderRoundResult(
 
   root.innerHTML = `
     <div class="result-card ${violation ? 'is-violation' : 'is-clean'}">
+      <span class="tick tick--tl"></span><span class="tick tick--tr"></span><span class="tick tick--bl"></span><span class="tick tick--br"></span>
       <div class="stamp stamp--${stamp.tone}" aria-hidden="true">
         <span class="stamp-text">${stamp.text}</span>
       </div>

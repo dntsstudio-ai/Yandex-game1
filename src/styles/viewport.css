@@ -1,0 +1,166 @@
+/* Виртуальная сцена и режим «уменьшить всё» для телефона в альбомной ориентации. */
+.app-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
+body.is-fit {
+  overflow: hidden;
+}
+
+body.is-fit .app {
+  padding: 0;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+body.is-fit .app-stage {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 1440px;
+  height: 780px;
+  /* Сначала центрируем немасштабированную сцену отступами, затем масштабируем
+     относительно её центра: комбинация translate(-50%) и scale() смещала бы
+     сцену на половину исходного размера. */
+  margin-left: -720px;
+  margin-top: -390px;
+  padding: 18px 26px;
+  transform: scale(var(--fit-scale, 1));
+  transform-origin: center center;
+}
+
+/* В уменьшенном режиме липкие элементы не нужны: сцена видна целиком. */
+body.is-fit .dock,
+body.is-fit .hud {
+  position: static;
+  box-shadow: none;
+  background: linear-gradient(180deg, rgba(30, 36, 48, 0.78), rgba(16, 20, 28, 0.82));
+}
+
+body.is-fit .dock {
+  background: transparent;
+  padding: 0;
+}
+
+/* Компактная типографика: в уменьшенном режиме важно, чтобы самый длинный
+   документ и самый длинный разбор помещались целиком, без прокрутки. */
+body.is-fit .hud {
+  padding: 10px 14px;
+}
+
+body.is-fit .doc {
+  padding: 16px 20px;
+  gap: 10px;
+}
+
+body.is-fit .doc-head {
+  padding-bottom: 10px;
+}
+
+body.is-fit .doc-body {
+  gap: 9px;
+}
+
+body.is-fit .doc-list {
+  gap: 6px;
+}
+
+body.is-fit .bubble {
+  padding: 7px 12px;
+}
+
+body.is-fit .doc-fields {
+  padding: 10px 13px;
+  gap: 5px;
+}
+
+body.is-fit .result-card {
+  gap: 12px;
+  padding: 18px 20px;
+}
+
+body.is-fit .result-explanation {
+  padding: 11px 14px;
+}
+
+body.is-fit .review {
+  gap: 9px;
+}
+
+body.is-fit .review-group li {
+  padding: 7px 11px;
+}
+
+body.is-fit .review-group ul {
+  gap: 6px;
+}
+
+/* ---------- подсказка «поверните экран» ---------- */
+.rotate-hint {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(5, 7, 11, 0.92);
+  backdrop-filter: blur(10px);
+  animation: fade-in 0.3s var(--ease);
+}
+
+.rotate-inner {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  text-align: center;
+  max-width: 34ch;
+}
+
+.rotate-icon {
+  width: 120px;
+  height: 80px;
+}
+
+.rotate-phone {
+  fill: none;
+  stroke: var(--text-soft);
+  stroke-width: 3;
+  transform-origin: 60px 40px;
+  animation: rotate-phone 3.2s var(--ease) infinite;
+}
+
+.rotate-arrow {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.rotate-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.rotate-text {
+  color: var(--text-soft);
+  font-size: 0.88rem;
+}
+
+@keyframes rotate-phone {
+  0%, 30% { transform: rotate(0deg); }
+  55%, 85% { transform: rotate(-90deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rotate-phone {
+    animation: none;
+    transform: rotate(-90deg);
+  }
+}

@@ -20,6 +20,12 @@
   padding: 24px 0;
 }
 
+.logo-image {
+  width: clamp(120px, 26vw, 230px);
+  height: auto;
+  filter: drop-shadow(0 14px 38px rgba(0, 0, 0, 0.6));
+}
+
 .flag-mark svg {
   width: clamp(64px, 14vw, 96px);
   height: auto;
