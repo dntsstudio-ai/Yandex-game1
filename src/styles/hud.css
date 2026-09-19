@@ -1,0 +1,95 @@
+/* Верхняя панель: таймер, очки, номер документа, точность. */
+.hud {
+  display: grid;
+  gap: 10px;
+  background: rgba(22, 27, 37, 0.72);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  padding: 12px 14px;
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.hud-stats {
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 3vw, 26px);
+}
+
+.hud-item {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.hud-item--time {
+  padding-right: clamp(8px, 2vw, 18px);
+  border-right: 1px solid var(--line);
+}
+
+.hud-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.hud-value {
+  font-family: var(--mono);
+  font-size: clamp(0.95rem, 3.6vw, 1.2rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.2s var(--ease);
+}
+
+.hud-value.is-low {
+  color: var(--red);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.hud-value.is-negative {
+  color: var(--red);
+}
+
+.sound-btn {
+  margin-left: auto;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 0.95rem;
+  display: grid;
+  place-items: center;
+  transition: transform 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+
+.sound-btn:hover {
+  transform: scale(1.07);
+  border-color: var(--line-strong);
+}
+
+.timebar {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.timebar-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--green), #8ce6b4);
+}
+
+.timebar-fill.is-low {
+  background: linear-gradient(90deg, var(--red), #ff9a5c);
+}

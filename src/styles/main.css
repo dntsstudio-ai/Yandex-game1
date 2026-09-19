@@ -1,0 +1,7 @@
+/* Точка сборки стилей. */
+@import './tokens.css';
+@import './base.css';
+@import './hud.css';
+@import './document.css';
+@import './screens.css';
+@import './animations.css';

@@ -1,0 +1,36 @@
+/* Дизайн-токены: цвета, тени, типографика, радиусы. */
+:root {
+  --bg: #0a0c11;
+  --bg-2: #11141c;
+  --surface: #161b25;
+  --surface-2: #1e2430;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.16);
+
+  --paper: #f5f7fb;
+  --paper-2: #e8ecf4;
+  --ink: #171a21;
+  --ink-soft: #565d6d;
+
+  --text: #eef1f7;
+  --text-soft: #98a1b3;
+
+  --red: #ff4d55;
+  --red-soft: rgba(255, 77, 85, 0.14);
+  --green: #35d07f;
+  --green-soft: rgba(53, 208, 127, 0.14);
+  --amber: #ffb020;
+  --blue: #5aa9ff;
+
+  --radius-s: 8px;
+  --radius-m: 14px;
+  --radius-l: 22px;
+
+  --shadow-card: 0 24px 60px rgba(0, 0, 0, 0.45);
+  --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.3);
+
+  --font: 'Inter', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', monospace;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}

@@ -1,0 +1,19 @@
+{
+  "name": "red-flag",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "КРАСНЫЙ ФЛАГ — браузерная мини-игра о противодействии коррупции",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.4"
+  }
+}
