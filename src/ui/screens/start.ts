@@ -1,10 +1,11 @@
 /** Стартовый экран. */
-import { GAME_DURATION_MS, SCORING } from '../../core/rules';
+import { SCORING } from '../../core/rules';
 import { h } from '../dom';
 
 export interface StartScreenHandlers {
   onStart: () => void;
   onAbout: () => void;
+  onSettings: () => void;
 }
 
 export function renderStartScreen(scenarioCount: number, handlers: StartScreenHandlers): HTMLElement {
@@ -23,19 +24,19 @@ export function renderStartScreen(scenarioCount: number, handlers: StartScreenHa
       <div class="start-actions">
         <button type="button" class="btn btn--primary" data-action="start">НАЧАТЬ ПРОВЕРКУ</button>
         <button type="button" class="btn btn--ghost" data-action="about">О ПРОЕКТЕ</button>
+        <button type="button" class="btn btn--ghost" data-action="settings">НАСТРОЙКИ</button>
       </div>
 
       <ul class="start-rules">
         <li><span class="dot dot--green"></span>Признак риска: +${SCORING.hit}</li>
         <li><span class="dot dot--red"></span>Ошибочный клик: ${SCORING.falsePositive}</li>
-        <li><span class="dot dot--blue"></span>${scenarioCount} документов · ${Math.round(
-          GAME_DURATION_MS / 1000,
-        )} секунд</li>
+        <li><span class="dot dot--blue"></span>${scenarioCount} документов · таймер на каждый</li>
       </ul>
     </div>
   `;
 
   root.querySelector('[data-action="start"]')?.addEventListener('click', handlers.onStart);
   root.querySelector('[data-action="about"]')?.addEventListener('click', handlers.onAbout);
+  root.querySelector('[data-action="settings"]')?.addEventListener('click', handlers.onSettings);
   return root;
 }

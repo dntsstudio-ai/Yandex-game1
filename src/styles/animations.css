@@ -37,6 +37,12 @@
   100% { opacity: 0; transform: translate(-50%, -46px) scale(0.98); }
 }
 
+@keyframes stamp-hit {
+  0% { opacity: 0; transform: rotate(-11deg) scale(2.4); }
+  60% { opacity: 0.95; transform: rotate(-11deg) scale(0.94); }
+  100% { opacity: 0.85; transform: rotate(-11deg) scale(1); }
+}
+
 @keyframes note-pop {
   from { transform: translateY(6px); opacity: 0.4; }
   to { transform: translateY(0); opacity: 1; }
@@ -112,12 +118,18 @@
   }
 
   .verdict {
-    grid-template-columns: auto 1fr;
+    padding-right: 0;
+    padding-top: 34px;
   }
 
-  .verdict-points {
-    grid-column: 2;
-    justify-self: start;
+  .stamp {
+    top: 12px;
+    right: 12px;
+    padding: 6px 12px;
+  }
+
+  .result-actions .btn {
+    flex: 1;
   }
 
   .bubble {
@@ -128,7 +140,6 @@
     grid-template-columns: 1fr;
   }
 
-  .result-card .btn--primary,
   .final-actions .btn {
     width: 100%;
     justify-self: stretch;

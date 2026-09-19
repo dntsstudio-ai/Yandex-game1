@@ -1,4 +1,4 @@
-/** Экран разбора раунда. */
+/** Экран разбора раунда: вердикт, штамп, найденное и пропущенное. */
 import type { RoundResult, Scenario } from '../../core/types';
 import { escapeHtml, h } from '../dom';
 
@@ -24,6 +24,21 @@ function list(scenario: Scenario, ids: string[], modifier: string, caption: stri
   `;
 }
 
+/** Надпись на штампе — по итогу раунда. */
+function stampFor(result: RoundResult, violation: boolean): { text: string; tone: string } {
+  if (result.decision === null) return { text: 'ВРЕМЯ ВЫШЛО', tone: 'warn' };
+  if (!result.decisionCorrect) return { text: 'ОШИБКА', tone: 'fail' };
+  return violation ? { text: 'ОСТАНОВЛЕНО', tone: 'stop' } : { text: 'ПРОВЕРЕНО', tone: 'pass' };
+}
+
+function decisionLine(result: RoundResult): string {
+  if (result.decision === null) {
+    return 'Время на документ истекло — решение не принято';
+  }
+  const label = result.decision === 'stop' ? 'ОСТАНОВИТЬ' : 'ПРОПУСТИТЬ';
+  return `Ваше решение: ${label} — ${result.decisionCorrect ? 'верно' : 'ошибка'}`;
+}
+
 export function renderRoundResult(
   scenario: Scenario,
   result: RoundResult,
@@ -31,10 +46,15 @@ export function renderRoundResult(
   onNext: () => void,
 ): HTMLElement {
   const violation = scenario.correctDecision === 'stop';
+  const stamp = stampFor(result, violation);
   const root = h('section', 'screen screen--result');
 
   root.innerHTML = `
     <div class="result-card ${violation ? 'is-violation' : 'is-clean'}">
+      <div class="stamp stamp--${stamp.tone}" aria-hidden="true">
+        <span class="stamp-text">${stamp.text}</span>
+      </div>
+
       <div class="verdict">
         <span class="verdict-icon" aria-hidden="true">${violation ? '⚑' : '✓'}</span>
         <div>
@@ -42,13 +62,9 @@ export function renderRoundResult(
             violation ? 'Нарушение обнаружено' : 'Нарушений не обнаружено'
           }</h2>
           <p class="verdict-sub ${result.decisionCorrect ? 'is-ok' : 'is-fail'}">
-            Ваше решение: ${result.decision === 'stop' ? 'ОСТАНОВИТЬ' : 'ПРОПУСТИТЬ'} —
-            ${result.decisionCorrect ? 'верно' : 'ошибка'}
+            ${decisionLine(result)}
           </p>
         </div>
-        <span class="verdict-points ${result.points >= 0 ? 'is-plus' : 'is-minus'}">
-          ${result.points >= 0 ? '+' : ''}${result.points}
-        </span>
       </div>
 
       <p class="result-explanation">${escapeHtml(scenario.explanation)}</p>
@@ -59,10 +75,16 @@ export function renderRoundResult(
         ${list(scenario, result.falsePositives, 'false', 'Ложные срабатывания')}
       </div>
 
-      <button type="button" class="btn btn--primary" data-action="next">
-        ${isLast ? 'ИТОГИ ПРОВЕРКИ' : 'СЛЕДУЮЩИЙ ДОКУМЕНТ'}
-      </button>
-      <p class="result-hint">Таймер остановлен на время разбора</p>
+      <div class="result-actions">
+        <button type="button" class="btn btn--primary" data-action="next">
+          ${isLast ? 'ИТОГИ ПРОВЕРКИ' : 'СЛЕДУЮЩИЙ ДОКУМЕНТ'}
+        </button>
+        <span class="round-score ${result.points >= 0 ? 'is-plus' : 'is-minus'}">
+          <small>за раунд</small>
+          <strong>${result.points >= 0 ? '+' : ''}${result.points}</strong>
+        </span>
+      </div>
+      <p class="result-hint">Таймер следующего документа начнётся заново</p>
     </div>
   `;
 

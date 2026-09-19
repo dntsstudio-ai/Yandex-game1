@@ -60,6 +60,8 @@ export interface Scenario {
   hotspots: Hotspot[];
   /** Верное решение по документу. */
   correctDecision: Decision;
+  /** Время на проверку этого документа, мс. По умолчанию ROUND_DURATION_MS. */
+  timeLimitMs?: number;
   /** Разбор после раунда. */
   explanation: string;
 }
@@ -73,7 +75,8 @@ export interface RoundResult {
   missed: string[];
   /** Ложные срабатывания — клики по нормальным элементам. */
   falsePositives: string[];
-  decision: Decision;
+  /** Принятое решение; null — время на документ вышло. */
+  decision: Decision | null;
   decisionCorrect: boolean;
   /** Очки, начисленные за раунд (с учётом штрафов). */
   points: number;
@@ -87,6 +90,8 @@ export interface Totals {
   falsePositives: number;
   correctDecisions: number;
   roundsPlayed: number;
+  /** Документы, на которых истекло время. */
+  timedOutRounds: number;
   totalFlags: number;
   elapsedMs: number;
   purityIndex: number;
@@ -102,8 +107,12 @@ export interface GameState {
   /** Индекс текущей ситуации. */
   index: number;
   score: number;
-  /** Оставшееся время в миллисекундах. */
+  /** Оставшееся время на текущий документ, мс. */
   timeLeftMs: number;
+  /** Полное время на текущий документ, мс — для шкалы таймера. */
+  roundDurationMs: number;
+  /** Суммарно потраченное время партии, мс. */
+  elapsedMs: number;
   /** Кликнутые в текущем раунде элементы. */
   clicked: string[];
   /** Результаты завершённых раундов. */
@@ -111,5 +120,5 @@ export interface GameState {
   /** Результат последнего раунда — для экрана разбора. */
   lastResult: RoundResult | null;
   /** Причина завершения партии. */
-  finishReason: 'complete' | 'timeout' | null;
+  finishReason: 'complete' | 'quit' | null;
 }

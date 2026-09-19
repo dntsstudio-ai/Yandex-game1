@@ -18,8 +18,13 @@ export const SCORING = {
   perfectBonus: 100,
 } as const;
 
-/** Длительность партии, мс. */
-export const GAME_DURATION_MS = 90_000;
+/** Время на один документ по умолчанию, мс. Сбрасывается в начале каждого раунда. */
+export const ROUND_DURATION_MS = 35_000;
+
+/** Время на конкретный документ: ситуация может задать своё значение. */
+export function roundDuration(scenario: Scenario): number {
+  return scenario.timeLimitMs ?? ROUND_DURATION_MS;
+}
 
 /** Признаки риска внутри ситуации. */
 export function suspiciousIds(scenario: Scenario): string[] {
@@ -40,7 +45,7 @@ export function clickPoints(scenario: Scenario, hotspotId: string): number {
 export function resolveRound(
   scenario: Scenario,
   clicked: readonly string[],
-  decision: Decision,
+  decision: Decision | null,
 ): RoundResult {
   const unique = Array.from(new Set(clicked));
   const flags = suspiciousIds(scenario);
@@ -49,7 +54,8 @@ export function resolveRound(
   const falsePositives = unique.filter(
     (id) => !flags.includes(id) && scenario.hotspots.some((h) => h.id === id),
   );
-  const decisionCorrect = decision === scenario.correctDecision;
+  // decision === null означает, что время на документ вышло: решение не принято.
+  const decisionCorrect = decision !== null && decision === scenario.correctDecision;
 
   let points =
     found.length * SCORING.hit +
@@ -106,6 +112,7 @@ export function computeTotals(
   const falsePositives = sum(results, (r) => r.falsePositives.length);
   const correctDecisions = results.filter((r) => r.decisionCorrect).length;
   const roundsPlayed = results.length;
+  const timedOutRounds = results.filter((r) => r.decision === null).length;
 
   const totalFlags = results.reduce((acc, r) => {
     const scenario = scenarios.find((s) => s.id === r.scenarioId);
@@ -121,6 +128,7 @@ export function computeTotals(
     falsePositives,
     correctDecisions,
     roundsPlayed,
+    timedOutRounds,
     totalFlags,
     elapsedMs,
     purityIndex: purityIndex({

@@ -40,11 +40,13 @@
 }
 
 .start-title {
-  font-size: clamp(2.2rem, 8.6vw, 4rem);
-  letter-spacing: 0.08em;
-  line-height: 1.05;
+  font-size: clamp(2.3rem, 9vw, 4.4rem);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  line-height: 1;
   display: grid;
-  gap: 2px;
+  gap: 4px;
+  text-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
 }
 
 .start-title span {
@@ -52,13 +54,27 @@
 }
 
 .start-title .title-accent {
-  color: var(--red);
-  text-shadow: 0 10px 34px rgba(255, 77, 85, 0.35);
+  background: linear-gradient(135deg, var(--red), #ff9a5c);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 12px 34px rgba(255, 77, 85, 0.35));
+}
+
+/* Тонкая линия-разделитель под заголовком. */
+.start-title::after {
+  content: '';
+  width: 64px;
+  height: 1px;
+  margin: 12px auto 0;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
 }
 
 .start-tagline {
+  font-family: var(--font-doc);
+  font-style: italic;
   color: var(--text-soft);
-  font-size: clamp(0.95rem, 2.6vw, 1.1rem);
+  font-size: clamp(1rem, 2.8vw, 1.15rem);
   max-width: 34ch;
 }
 
@@ -73,11 +89,13 @@
 .start-rules {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 18px;
+  gap: 10px 20px;
   justify-content: center;
-  color: var(--text-soft);
-  font-size: 0.85rem;
-  margin-top: 10px;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  margin-top: 14px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
 }
 
 .start-rules li {
@@ -192,8 +210,9 @@
 }
 
 .result-card {
-  background: var(--surface);
-  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(30, 36, 48, 0.86), rgba(16, 20, 28, 0.9));
+  border: 1px solid var(--line-strong);
+  backdrop-filter: blur(18px);
   border-radius: var(--radius-l);
   padding: clamp(18px, 3.4vw, 28px);
   display: grid;
@@ -207,9 +226,10 @@
 
 .verdict {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr;
   align-items: center;
   gap: 14px;
+  padding-right: clamp(110px, 16vw, 150px);
 }
 
 .verdict-icon {
@@ -244,22 +264,47 @@
 .verdict-sub.is-ok { color: var(--green); }
 .verdict-sub.is-fail { color: var(--red); }
 
-.verdict-points {
-  font-family: var(--mono);
-  font-size: clamp(1.1rem, 4vw, 1.5rem);
-  font-weight: 700;
+/* Очки за раунд — рядом с кнопкой перехода. */
+.result-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
-.verdict-points.is-plus { color: var(--green); }
-.verdict-points.is-minus { color: var(--red); }
+.round-score {
+  display: grid;
+  justify-items: end;
+  gap: 1px;
+  line-height: 1.1;
+}
+
+.round-score small {
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.round-score strong {
+  font-size: clamp(1.2rem, 4.2vw, 1.6rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.round-score.is-plus strong { color: var(--green); }
+.round-score.is-minus strong { color: var(--red); }
 
 .result-explanation {
+  font-family: var(--font-doc);
   color: var(--text);
-  font-size: 0.95rem;
-  background: var(--surface-2);
+  font-size: 0.98rem;
+  line-height: 1.6;
+  background: rgba(255, 255, 255, 0.035);
   border-radius: var(--radius-m);
-  padding: 14px 16px;
-  border-left: 3px solid var(--line-strong);
+  padding: 15px 18px;
+  border-left: 2px solid var(--gold);
 }
 
 .review {
@@ -286,12 +331,18 @@
 
 .review-group li {
   display: grid;
-  gap: 2px;
-  padding: 9px 12px;
+  gap: 3px;
+  padding: 10px 13px;
   border-radius: var(--radius-s);
-  background: var(--surface-2);
-  border-left: 3px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.035);
+  border-left: 2px solid var(--line-strong);
   font-size: 0.86rem;
+  transition: background 0.2s var(--ease), transform 0.2s var(--ease);
+}
+
+.review-group li:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateX(2px);
 }
 
 .review-group li span {
@@ -309,9 +360,7 @@
   opacity: 0.7;
 }
 
-.result-card .btn--primary {
-  justify-self: start;
-}
+
 
 /* ---------- Финальный экран ---------- */
 .screen--final {
@@ -324,8 +373,9 @@
   gap: 14px;
   justify-items: center;
   text-align: center;
-  background: var(--surface);
-  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(30, 36, 48, 0.86), rgba(16, 20, 28, 0.92));
+  border: 1px solid var(--line-strong);
+  backdrop-filter: blur(18px);
   border-radius: var(--radius-l);
   padding: clamp(20px, 4vw, 34px);
   box-shadow: var(--shadow-card);
@@ -382,10 +432,11 @@
 }
 
 .purity-number {
-  font-size: clamp(2.2rem, 9vw, 3rem);
+  font-size: clamp(2.4rem, 9.5vw, 3.2rem);
   font-weight: 800;
-  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
   line-height: 1;
+  letter-spacing: -0.02em;
 }
 
 .purity-unit {
@@ -402,15 +453,28 @@
 }
 
 .final-rank {
-  font-size: clamp(1.1rem, 4vw, 1.5rem);
+  font-size: clamp(1.15rem, 4.2vw, 1.55rem);
   font-weight: 800;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
+  background: linear-gradient(135deg, #fff, var(--gold));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .final-caption {
+  font-family: var(--font-doc);
+  font-style: italic;
   color: var(--text-soft);
-  font-size: 0.88rem;
+  font-size: 0.92rem;
   max-width: 40ch;
+}
+
+.final-summary {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
 }
 
 .stats {
@@ -426,10 +490,17 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: var(--surface-2);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--line);
   border-radius: var(--radius-s);
-  padding: 11px 14px;
+  padding: 12px 15px;
   font-size: 0.85rem;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.stat:hover {
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.055);
 }
 
 .stat span {
@@ -437,8 +508,9 @@
 }
 
 .stat strong {
-  font-family: var(--mono);
   font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -458,3 +530,42 @@
   justify-content: center;
   margin-top: 8px;
 }
+
+
+/* ---------- Штамп на экране разбора ---------- */
+.stamp {
+  position: absolute;
+  top: clamp(10px, 2.4vw, 22px);
+  right: clamp(10px, 2.4vw, 22px);
+  padding: 8px 16px;
+  border: 3px double currentColor;
+  border-radius: 6px;
+  transform: rotate(-11deg);
+  opacity: 0.85;
+  pointer-events: none;
+  animation: stamp-hit 0.42s var(--ease-back) both;
+  z-index: 2;
+}
+
+.stamp-text {
+  font-size: clamp(0.62rem, 2.2vw, 0.78rem);
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.stamp::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cfilter id='s'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3'/%3E%3C/filter%3E%3Crect width='90' height='90' filter='url(%23s)' opacity='0.5'/%3E%3C/svg%3E");
+  background-size: 90px 90px;
+  mix-blend-mode: screen;
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+.stamp--stop { color: var(--red); }
+.stamp--pass { color: var(--green); }
+.stamp--fail { color: var(--red-deep); }
+.stamp--warn { color: var(--amber); }

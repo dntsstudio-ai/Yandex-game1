@@ -1,12 +1,13 @@
 /* Верхняя панель: таймер, очки, номер документа, точность. */
 .hud {
   display: grid;
-  gap: 10px;
-  background: rgba(22, 27, 37, 0.72);
-  border: 1px solid var(--line);
+  gap: 11px;
+  background: linear-gradient(180deg, rgba(30, 36, 48, 0.78), rgba(16, 20, 28, 0.82));
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-m);
-  padding: 12px 14px;
-  backdrop-filter: blur(10px);
+  padding: 13px 16px;
+  backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-soft);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -30,18 +31,19 @@
 }
 
 .hud-label {
-  font-size: 0.6rem;
-  letter-spacing: 0.14em;
+  font-size: 0.57rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--text-soft);
+  color: var(--text-dim);
   white-space: nowrap;
 }
 
 .hud-value {
-  font-family: var(--mono);
-  font-size: clamp(0.95rem, 3.6vw, 1.2rem);
+  font-size: clamp(1rem, 3.8vw, 1.25rem);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
   transition: color 0.2s var(--ease);
 }
 
@@ -56,12 +58,12 @@
 
 .sound-btn {
   margin-left: auto;
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   flex: none;
   border-radius: 50%;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line-strong);
   color: var(--text);
   font-size: 0.95rem;
   display: grid;
@@ -70,15 +72,18 @@
 }
 
 .sound-btn:hover {
-  transform: scale(1.07);
-  border-color: var(--line-strong);
+  transform: translateY(-2px);
+  border-color: var(--text-soft);
+  color: var(--red);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .timebar {
-  height: 5px;
+  height: 4px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.07);
   overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .timebar-fill {
@@ -87,9 +92,11 @@
   width: 100%;
   transform-origin: left center;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--green), #8ce6b4);
+  background: linear-gradient(90deg, var(--green), #9bf3cb);
+  box-shadow: 0 0 14px rgba(55, 217, 154, 0.5);
 }
 
 .timebar-fill.is-low {
   background: linear-gradient(90deg, var(--red), #ff9a5c);
+  box-shadow: 0 0 16px rgba(255, 77, 85, 0.55);
 }

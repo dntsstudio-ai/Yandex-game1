@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { scenarios } from '../data/scenarios';
 import {
-  GAME_DURATION_MS,
+  ROUND_DURATION_MS,
   SCORING,
   clickPoints,
   computeTotals,
@@ -9,6 +9,7 @@ import {
   purityIndex,
   rankFor,
   resolveRound,
+  roundDuration,
   suspiciousIds,
 } from './rules';
 import { GameEngine, createInitialState } from './engine';
@@ -88,6 +89,35 @@ describe('итог раунда', () => {
     const result = resolveRound(demo, ['bad-1', 'bad-1', 'bad-1'], 'stop');
     expect(result.found).toEqual(['bad-1']);
     expect(result.points).toBe(100 + SCORING.decisionBonus); // 300
+  });
+});
+
+describe('истечение времени на документ', () => {
+  it('решение не принято: найденное засчитано, но штраф как за ошибку', () => {
+    const result = resolveRound(demo, ['bad-1'], null);
+    expect(result.decision).toBeNull();
+    expect(result.decisionCorrect).toBe(false);
+    expect(result.found).toEqual(['bad-1']);
+    expect(result.missed).toEqual(['bad-2']);
+    expect(result.points).toBe(100 + SCORING.decisionPenalty); // -100
+  });
+
+  it('безупречный бонус не даётся без решения', () => {
+    const result = resolveRound(demo, ['bad-1', 'bad-2'], null);
+    expect(result.points).toBe(200 + SCORING.decisionPenalty); // 0
+  });
+
+  it('просроченные документы попадают в статистику', () => {
+    const timedOut = resolveRound(demo, [], null);
+    const solved = resolveRound(clean, [], 'pass');
+    const totals = computeTotals(
+      { score: 0, results: [timedOut, solved] },
+      [demo, clean],
+      12_000,
+    );
+    expect(totals.timedOutRounds).toBe(1);
+    expect(totals.roundsPlayed).toBe(2);
+    expect(totals.correctDecisions).toBe(1);
   });
 });
 
@@ -194,9 +224,27 @@ describe('движок', () => {
     expect(engine.getTotals().purityIndex).toBe(100);
   });
 
-  it('стартовое состояние содержит 90 секунд', () => {
-    expect(createInitialState().timeLeftMs).toBe(GAME_DURATION_MS);
-    expect(GAME_DURATION_MS).toBe(90_000);
+  it('таймер задаётся на каждый документ отдельно', () => {
+    expect(createInitialState().timeLeftMs).toBe(ROUND_DURATION_MS);
+
+    const engine = new GameEngine([
+      { ...demo, timeLimitMs: 20_000 },
+      { ...clean, timeLimitMs: 40_000 },
+    ]);
+    engine.start();
+    expect(engine.getState().timeLeftMs).toBe(20_000);
+    expect(engine.getState().roundDurationMs).toBe(20_000);
+
+    // после разбора таймер сбрасывается под следующий документ
+    engine.decide('stop');
+    engine.next();
+    expect(engine.getState().timeLeftMs).toBe(40_000);
+    expect(engine.getState().roundDurationMs).toBe(40_000);
+  });
+
+  it('время на документ берётся из ситуации, иначе — значение по умолчанию', () => {
+    expect(roundDuration(demo)).toBe(ROUND_DURATION_MS);
+    expect(roundDuration({ ...demo, timeLimitMs: 12_000 })).toBe(12_000);
   });
 });
 
@@ -225,6 +273,21 @@ describe('контент', () => {
       expect(flags.length).toBeLessThanOrEqual(4);
       expect(scenario.hotspots.length).toBeGreaterThan(flags.length);
       expect(scenario.explanation.length).toBeGreaterThan(10);
+    }
+  });
+
+  it('у каждой ситуации разумный лимит времени', () => {
+    for (const scenario of scenarios) {
+      const limit = roundDuration(scenario);
+      expect(limit).toBeGreaterThanOrEqual(20_000);
+      expect(limit).toBeLessThanOrEqual(60_000);
+    }
+  });
+
+  it('время на документ не уменьшается по ходу игры', () => {
+    const limits = scenarios.map(roundDuration);
+    for (let i = 1; i < limits.length; i += 1) {
+      expect(limits[i]).toBeGreaterThanOrEqual(limits[i - 1]);
     }
   });
 

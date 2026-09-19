@@ -1,16 +1,18 @@
 /** Итоговый экран партии. */
 import { rankFor } from '../../core/rules';
-import type { GameState, Totals } from '../../core/types';
+import type { Totals } from '../../core/types';
 import { formatDuration, h } from '../dom';
 
 export interface FinalHandlers {
   onRestart: () => void;
   onAbout: () => void;
+  onSettings: () => void;
+  /** Тик счётчика во время анимации индекса чистоты. */
+  onCount: () => void;
 }
 
 export function renderFinalScreen(
   totals: Totals,
-  state: GameState,
   scenarioCount: number,
   handlers: FinalHandlers,
 ): HTMLElement {
@@ -22,8 +24,8 @@ export function renderFinalScreen(
     <div class="final-inner">
       <h2 class="final-title">ПРОВЕРКА ЗАВЕРШЕНА</h2>
       ${
-        state.finishReason === 'timeout'
-          ? `<p class="final-alert">Время вышло. Проверено документов: ${totals.roundsPlayed} из ${scenarioCount}</p>`
+        totals.timedOutRounds > 0
+          ? `<p class="final-alert">Документов с истёкшим временем: ${totals.timedOutRounds}</p>`
           : ''
       }
 
@@ -45,6 +47,7 @@ export function renderFinalScreen(
 
       <p class="final-rank">${rank.title}</p>
       <p class="final-caption">${rank.caption}</p>
+      <p class="final-summary">Проверено документов: ${totals.roundsPlayed} из ${scenarioCount}</p>
 
       <div class="stats">
         <div class="stat"><span>Итоговые очки</span><strong class="${
@@ -63,24 +66,32 @@ export function renderFinalScreen(
         <div class="stat"><span>Потрачено времени</span><strong>${formatDuration(
           totals.elapsedMs,
         )}</strong></div>
+
       </div>
 
       <div class="final-actions">
         <button type="button" class="btn btn--primary" data-action="restart">ИГРАТЬ СНОВА</button>
         <button type="button" class="btn btn--ghost" data-action="about">О ПРОЕКТЕ</button>
+        <button type="button" class="btn btn--ghost" data-action="settings">НАСТРОЙКИ</button>
       </div>
     </div>
   `;
 
   root.querySelector('[data-action="restart"]')?.addEventListener('click', handlers.onRestart);
   root.querySelector('[data-action="about"]')?.addEventListener('click', handlers.onAbout);
+  root.querySelector('[data-action="settings"]')?.addEventListener('click', handlers.onSettings);
 
-  animatePurity(root, totals.purityIndex, circumference);
+  animatePurity(root, totals.purityIndex, circumference, handlers.onCount);
   return root;
 }
 
 /** Плавное заполнение кольца и счётчика. */
-function animatePurity(root: HTMLElement, target: number, circumference: number): void {
+function animatePurity(
+  root: HTMLElement,
+  target: number,
+  circumference: number,
+  onCount: () => void,
+): void {
   const ring = root.querySelector<SVGCircleElement>('.purity-value');
   const number = root.querySelector<HTMLElement>('[data-purity]');
   const duration = 900;
@@ -94,7 +105,10 @@ function animatePurity(root: HTMLElement, target: number, circumference: number)
     const progress = Math.min(1, (now - startedAt) / duration);
     const eased = 1 - Math.pow(1 - progress, 3);
     const value = Math.round(target * eased);
-    if (number) number.textContent = String(value);
+    if (number && number.textContent !== String(value)) {
+      number.textContent = String(value);
+      if (value > 0 && value % 5 === 0) onCount();
+    }
     if (ring) ring.style.strokeDashoffset = String(circumference * (1 - (target / 100) * eased));
     if (progress < 1) requestAnimationFrame(step);
   };

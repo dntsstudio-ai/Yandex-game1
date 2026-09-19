@@ -2,9 +2,19 @@
  * Игровой движок: хранит состояние, считает время и применяет правила.
  * Ничего не знает ни о DOM, ни о конкретных ситуациях — UI подписывается
  * на изменения через subscribe().
+ *
+ * Таймер отсчитывается для каждого документа отдельно и сбрасывается
+ * в начале следующего раунда.
  */
 import { scenarios as defaultScenarios } from '../data/scenarios';
-import { GAME_DURATION_MS, SCORING, clickPoints, computeTotals, resolveRound } from './rules';
+import {
+  ROUND_DURATION_MS,
+  SCORING,
+  clickPoints,
+  computeTotals,
+  resolveRound,
+  roundDuration,
+} from './rules';
 import type { Decision, GameState, Scenario, Totals } from './types';
 
 type Listener = (state: GameState) => void;
@@ -43,7 +53,7 @@ export class GameEngine {
   }
 
   getTotals(): Totals {
-    return computeTotals(this.state, this.scenarios, GAME_DURATION_MS - this.state.timeLeftMs);
+    return computeTotals(this.state, this.scenarios, this.state.elapsedMs);
   }
 
   subscribe(listener: Listener): () => void {
@@ -54,7 +64,13 @@ export class GameEngine {
 
   /** Старт новой партии. */
   start(): void {
-    this.state = { ...createInitialState(), phase: 'playing' };
+    const duration = roundDuration(this.scenarios[0]);
+    this.state = {
+      ...createInitialState(),
+      phase: 'playing',
+      timeLeftMs: duration,
+      roundDurationMs: duration,
+    };
     this.startTimer();
     this.emit();
   }
@@ -89,6 +105,38 @@ export class GameEngine {
 
   /** Решение по документу: «пропустить» или «остановить». */
   decide(decision: Decision): void {
+    this.finishRound(decision);
+  }
+
+  /** Переход к следующей ситуации с экрана разбора. */
+  next(): void {
+    if (this.state.phase !== 'round-result') return;
+    const nextIndex = this.state.index + 1;
+    const nextScenario = this.scenarios[nextIndex];
+
+    if (!nextScenario) {
+      this.state = { ...this.state, phase: 'final', finishReason: 'complete' };
+      this.emit();
+      return;
+    }
+
+    const duration = roundDuration(nextScenario);
+    this.state = {
+      ...this.state,
+      phase: 'playing',
+      index: nextIndex,
+      clicked: [],
+      lastResult: null,
+      // таймер сбрасывается на каждом документе
+      timeLeftMs: duration,
+      roundDurationMs: duration,
+    };
+    this.startTimer();
+    this.emit();
+  }
+
+  /** Завершение раунда: решением игрока или по истечении времени (decision = null). */
+  private finishRound(decision: Decision | null): void {
     const scenario = this.getScenario();
     if (!scenario || this.state.phase !== 'playing') return;
 
@@ -103,38 +151,10 @@ export class GameEngine {
       ...this.state,
       phase: 'round-result',
       score: this.state.score + (result.points - alreadyScored),
+      timeLeftMs: decision === null ? 0 : this.state.timeLeftMs,
       results: [...this.state.results, result],
       lastResult: result,
     };
-    this.emit();
-  }
-
-  /** Переход к следующей ситуации с экрана разбора. */
-  next(): void {
-    if (this.state.phase !== 'round-result') return;
-    const nextIndex = this.state.index + 1;
-
-    if (nextIndex >= this.scenarios.length) {
-      this.state = { ...this.state, phase: 'final', finishReason: 'complete' };
-      this.emit();
-      return;
-    }
-
-    this.state = {
-      ...this.state,
-      phase: 'playing',
-      index: nextIndex,
-      clicked: [],
-      lastResult: null,
-    };
-    this.startTimer();
-    this.emit();
-  }
-
-  /** Принудительное завершение партии (используется при выходе времени). */
-  private finishByTimeout(): void {
-    this.stopTimer();
-    this.state = { ...this.state, phase: 'final', timeLeftMs: 0, finishReason: 'timeout' };
     this.emit();
   }
 
@@ -147,10 +167,14 @@ export class GameEngine {
       const delta = now - this.lastTickAt;
       this.lastTickAt = now;
       const timeLeftMs = Math.max(0, this.state.timeLeftMs - delta);
-      this.state = { ...this.state, timeLeftMs };
+      this.state = {
+        ...this.state,
+        timeLeftMs,
+        elapsedMs: this.state.elapsedMs + delta,
+      };
 
       if (timeLeftMs <= 0) {
-        this.finishByTimeout();
+        this.finishRound(null);
         return;
       }
       this.emit();
@@ -176,7 +200,9 @@ export function createInitialState(): GameState {
     phase: 'start',
     index: 0,
     score: 0,
-    timeLeftMs: GAME_DURATION_MS,
+    timeLeftMs: ROUND_DURATION_MS,
+    roundDurationMs: ROUND_DURATION_MS,
+    elapsedMs: 0,
     clicked: [],
     results: [],
     lastResult: null,

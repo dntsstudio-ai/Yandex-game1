@@ -1,16 +1,20 @@
 /**
- * Контроллер UI: связывает движок с экранами.
+ * Контроллер UI: связывает движок с экранами, музыкой и звуками.
  * Экран перерисовывается только при смене фазы или номера ситуации,
  * значения HUD обновляются точечно на каждом кадре таймера.
  */
-import { audio } from '../core/audio';
 import { GameEngine } from '../core/engine';
+import { settings } from '../core/settings';
+import { setMasterVolume } from '../core/sound/context';
+import { music } from '../core/sound/music';
+import { sfx } from '../core/sound/sfx';
 import type { Decision, GameState } from '../core/types';
 import { h } from './dom';
 import { renderAbout } from './screens/about';
 import { renderFinalScreen } from './screens/final';
 import { renderGameScreen, type GameScreen } from './screens/game';
 import { renderRoundResult } from './screens/roundResult';
+import { renderSettings } from './screens/settings';
 import { renderStartScreen } from './screens/start';
 
 export class App {
@@ -26,6 +30,8 @@ export class App {
     this.engine = engine;
     this.floatLayer = h('div', 'float-layer');
     document.body.appendChild(this.floatLayer);
+
+    setMasterVolume(settings.get().volume);
     this.engine.subscribe((state) => this.onState(state));
   }
 
@@ -34,6 +40,7 @@ export class App {
     if (key !== this.renderedKey) {
       this.renderedKey = key;
       this.renderScreen(state);
+      music.duck(state.phase !== 'playing');
     }
 
     if (state.phase === 'playing' && this.gameScreen) {
@@ -45,10 +52,11 @@ export class App {
     }
   }
 
+  /** Тиканье последних секунд документа. */
   private tickSound(state: GameState): void {
     const second = Math.ceil(state.timeLeftMs / 1000);
     if (second !== this.lastSecond) {
-      if (this.lastSecond !== -1 && second <= 10 && second > 0) audio.play('tick');
+      if (this.lastSecond !== -1 && second <= 5 && second > 0) sfx.play('tick');
       this.lastSecond = second;
     }
   }
@@ -66,20 +74,25 @@ export class App {
       case 'round-result':
         return this.buildRoundResult(state);
       case 'final':
-        return this.buildFinal(state);
+        return this.buildFinal();
       case 'start':
       default:
         this.gameScreen = null;
         return renderStartScreen(this.engine.getScenarios().length, {
-          onStart: () => {
-            audio.unlock();
-            audio.play('decision');
-            this.lastSecond = -1;
-            this.engine.start();
-          },
+          onStart: () => this.beginGame(),
           onAbout: () => this.openAbout(),
+          onSettings: () => this.openSettings(),
         });
     }
+  }
+
+  /** Первый запуск: разблокируем звук и включаем музыку. */
+  private beginGame(): void {
+    sfx.unlock();
+    sfx.play('click');
+    void music.start();
+    this.lastSecond = -1;
+    this.engine.start();
   }
 
   private buildGame(state: GameState): HTMLElement {
@@ -93,24 +106,22 @@ export class App {
         screen.markHotspot(id, outcome.suspicious);
         screen.showNote(outcome.note, outcome.suspicious);
         this.showFloat(element, outcome.points);
-        audio.play(outcome.suspicious ? 'hit' : 'miss');
+        sfx.play(outcome.suspicious ? 'hit' : 'miss');
         if (!outcome.suspicious) this.shake(element);
       },
       onDecision: (decision: Decision) => {
         const correct = scenario.correctDecision === decision;
-        audio.play(correct ? 'good' : 'bad');
+        sfx.play('stamp');
+        sfx.play(correct ? 'good' : 'bad');
         this.engine.decide(decision);
       },
-      onToggleSound: () => {
-        const enabled = audio.toggle();
-        screen.setSoundIcon(enabled);
-        if (enabled) audio.play('tick');
-      },
+      onSettings: () => this.openSettings(),
     });
 
     this.gameScreen = screen;
-    screen.setSoundIcon(audio.isEnabled());
     screen.update(state, scenario, this.engine.getScenarios().length);
+    sfx.play('paper');
+    this.lastSecond = -1;
     return screen.root;
   }
 
@@ -120,27 +131,48 @@ export class App {
     const result = state.lastResult;
     if (!scenario || !result) return h('section', 'screen');
 
+    if (result.decision === null) sfx.play('timeout');
+
     const isLast = state.index === this.engine.getScenarios().length - 1;
     return renderRoundResult(scenario, result, isLast, () => {
-      audio.play('decision');
+      sfx.play('click');
       this.engine.next();
     });
   }
 
-  private buildFinal(state: GameState): HTMLElement {
+  private buildFinal(): HTMLElement {
     this.gameScreen = null;
-    audio.play('final');
-    return renderFinalScreen(this.engine.getTotals(), state, this.engine.getScenarios().length, {
+    sfx.play('final');
+    return renderFinalScreen(this.engine.getTotals(), this.engine.getScenarios().length, {
       onRestart: () => {
+        sfx.play('click');
+        void music.start();
         this.lastSecond = -1;
         this.engine.start();
       },
       onAbout: () => this.openAbout(),
+      onSettings: () => this.openSettings(),
+      onCount: () => sfx.play('count'),
     });
   }
 
   private openAbout(): void {
+    sfx.play('click');
     const overlay = renderAbout(() => overlay.remove());
+    document.body.appendChild(overlay);
+  }
+
+  private openSettings(): void {
+    sfx.play('click');
+    const overlay = renderSettings(
+      () => overlay.remove(),
+      (next) => {
+        setMasterVolume(next.volume);
+        music.setVolume(next.volume);
+        music.setEnabled(next.music);
+        if (next.sound) sfx.play('click');
+      },
+    );
     document.body.appendChild(overlay);
   }
 
