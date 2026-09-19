@@ -1,4 +1,15 @@
-/* Живой фон главного меню: камера, свет, пыль, рамка наблюдения. */
+/*
+ * Сцена главного меню: камера, свет, пыль, рамка наблюдения.
+ *
+ * Вся режиссура построена на классах экрана:
+ *   .menu-intro — сцена смонтирована, но ещё не показана;
+ *   .menu-live  — запуск таймлайна появления;
+ *   .menu-skip  — мгновенно конечное состояние (клик игрока, reduced-motion);
+ *   .menu-exit  — вход в здание.
+ *
+ * Анимируются только transform и opacity: фильтры и режимы наложения
+ * на движущихся слоях роняли частоту кадров впятеро.
+ */
 .menu-scene {
   position: fixed;
   inset: 0;
@@ -6,17 +17,17 @@
   overflow: hidden;
   pointer-events: none;
   contain: strict;
-  background: radial-gradient(120% 90% at 50% 20%, #1a2029, #05070b 70%);
+  background: radial-gradient(120% 90% at 50% 20%, #12161d, #04050a 70%);
 }
 
 /* ---------- фотография и движение камеры ---------- */
 .menu-camera {
   position: absolute;
-  inset: -6%;
+  inset: -4%;
   --shift-x: 0px;
   --shift-y: 0px;
   transform: translate3d(var(--shift-x), var(--shift-y), 0);
-  transition: transform 0.9s var(--ease);
+  transition: transform 1s var(--ease);
 }
 
 .menu-photo {
@@ -24,19 +35,38 @@
   height: 100%;
   object-fit: cover;
   opacity: 0;
-  transform: scale(1.06);
-  transition: opacity 1.4s var(--ease);
-  animation: camera-drift 42s ease-in-out infinite alternate;
-  will-change: transform;
+  transform: scale(1.005);
+  will-change: transform, opacity;
   backface-visibility: hidden;
 }
 
-.menu-scene.is-ready .menu-photo {
-  opacity: 1;
+/* Свет в окнах и над входом: включается в интро, потом едва заметно дышит. */
+.menu-windows {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  will-change: opacity;
+  background:
+    radial-gradient(22% 16% at 50% 62%, rgba(255, 206, 150, 0.4), transparent 70%),
+    radial-gradient(42% 26% at 50% 52%, rgba(255, 190, 130, 0.14), transparent 72%);
 }
 
-.menu-scene.is-photoless .menu-camera {
-  display: none;
+/* Машина в глубине: мягкое пятно света, без filter: blur. */
+.menu-car {
+  position: absolute;
+  will-change: transform, opacity;
+  left: -14%;
+  top: 61%;
+  width: 130px;
+  height: 16px;
+  opacity: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    rgba(255, 226, 190, 0.5),
+    rgba(255, 190, 150, 0.16) 60%,
+    transparent 100%
+  );
 }
 
 /* Луч света, проходящий по фасаду. */
@@ -49,13 +79,13 @@
   background: linear-gradient(
     100deg,
     transparent 0%,
-    rgba(255, 226, 180, 0.09) 45%,
-    rgba(255, 235, 200, 0.16) 50%,
-    rgba(255, 226, 180, 0.09) 55%,
+    rgba(255, 226, 180, 0.07) 45%,
+    rgba(255, 235, 200, 0.13) 50%,
+    rgba(255, 226, 180, 0.07) 55%,
     transparent 100%
   );
   transform: rotate(12deg);
-  animation: light-sweep 17s ease-in-out infinite;
+  opacity: 0;
   will-change: transform, opacity;
 }
 
@@ -65,47 +95,81 @@
   inset: 0;
   width: 100%;
   height: 100%;
+  opacity: 0;
+  /* буфер меньше экрана и растягивается: для размытых точек разницы не видно */
+  image-rendering: auto;
 }
 
-/* ---------- затемнение под текст ---------- */
+/* ---------- свет и затемнение ---------- */
+.menu-light {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  will-change: opacity;
+  background: radial-gradient(70% 55% at 50% 44%, rgba(255, 196, 132, 0.16), transparent 68%);
+}
+
 .menu-haze {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(90% 65% at 50% 42%, rgba(255, 196, 132, 0.1), transparent 62%),
+  opacity: 0;
+  background-image:
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.03) 0px,
+      rgba(255, 255, 255, 0.03) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23g)' opacity='0.1'/%3E%3C/svg%3E"),
     radial-gradient(120% 100% at 50% 50%, transparent 26%, rgba(4, 6, 10, 0.86) 92%),
     linear-gradient(180deg, rgba(5, 7, 11, 0.78) 0%, rgba(5, 7, 11, 0.42) 34%, rgba(5, 7, 11, 0.9) 88%);
+  background-size: auto, 200px 200px, auto, auto;
 }
 
-/* Сканлайны и редкий сбой сигнала — эффект записи с камеры. */
-.menu-scan {
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.035) 0px,
-    rgba(255, 255, 255, 0.035) 1px,
-    transparent 1px,
-    transparent 3px
-  );
-  opacity: 0.28;
-}
+/*
+ * Зерно плёнки и сканлайны — в одном слое с затемнением.
+ * Каждый полноэкранный слой стоит отдельного прохода композитора,
+ * поэтому статика собрана в один элемент, а анимируются только
+ * те слои, которым это действительно нужно.
+ */
 
 .menu-glitch {
   position: absolute;
   left: 0;
   right: 0;
-  height: 14px;
+  height: 12px;
   top: -20px;
+  opacity: 0;
   background: linear-gradient(
     180deg,
     transparent,
-    rgba(180, 220, 255, 0.16),
-    rgba(255, 255, 255, 0.1),
+    rgba(190, 220, 255, 0.1),
+    rgba(255, 255, 255, 0.06),
     transparent
   );
-  animation: glitch-roll 9s linear infinite;
   will-change: transform;
+}
+
+/* Затемнение на входе в здание. */
+.menu-blackout {
+  position: absolute;
+  inset: 0;
+  background: #04050a;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/*
+ * Облегчённый режим. Включается автоматически, если частота кадров в
+ * первые секунды оказалась низкой: сцена остаётся живой (камера, свет),
+ * но декоративные слои отключаются.
+ */
+.menu-scene.is-lite .menu-dust,
+.menu-scene.is-lite .menu-car,
+.menu-scene.is-lite .menu-sweep,
+.menu-scene.is-lite .menu-glitch {
+  display: none;
 }
 
 /* ---------- рамка камеры наблюдения ---------- */
@@ -115,6 +179,7 @@
   font-size: 0.62rem;
   letter-spacing: 0.18em;
   color: rgba(255, 255, 255, 0.5);
+  opacity: 0;
 }
 
 .hud-corner {
@@ -144,7 +209,6 @@
   border-radius: 50%;
   background: var(--red);
   box-shadow: 0 0 10px rgba(255, 77, 85, 0.9);
-  animation: rec-blink 1.8s ease-in-out infinite;
 }
 
 .hud-meta {
@@ -166,6 +230,7 @@
   bottom: 0;
   padding: 9px 0;
   overflow: hidden;
+  opacity: 0;
   background: linear-gradient(90deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.3));
   border-top: 1px solid rgba(255, 255, 255, 0.07);
   mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
@@ -180,7 +245,6 @@
   font-size: 0.62rem;
   letter-spacing: 0.24em;
   color: rgba(255, 255, 255, 0.34);
-  animation: ticker 46s linear infinite;
 }
 
 .menu-ticker-track i {
@@ -222,20 +286,229 @@
   padding: 10px 20px;
 }
 
-/* Появление блока меню. */
-.start-inner > * {
-  animation: menu-in 0.7s var(--ease) both;
+/* До запуска таймлайна интерфейс не показан. */
+.screen--start.menu-intro .start-inner > * {
+  opacity: 0;
 }
 
-.start-inner > *:nth-child(1) { animation-delay: 0.05s; }
-.start-inner > *:nth-child(2) { animation-delay: 0.14s; }
-.start-inner > *:nth-child(3) { animation-delay: 0.22s; }
-.start-inner > *:nth-child(4) { animation-delay: 0.3s; }
-.start-inner > *:nth-child(5) { animation-delay: 0.38s; }
+/* ============ ТАЙМЛАЙН ИНТРО ============ */
+/* Порядок: город → свет в здании → флаг → КРАСНЫЙ → ФЛАГ → подзаголовок
+   → кнопки → правила → рамка камеры и бегущая строка. */
 
+.menu-live .menu-photo {
+  animation:
+    photo-in 1.5s var(--ease) both,
+    camera-drift 34s ease-in-out 1.5s infinite alternate;
+}
+
+.menu-live .menu-haze {
+  animation: layer-in 1.5s var(--ease) both;
+}
+
+.menu-live .menu-windows {
+  animation:
+    windows-on 1.8s var(--ease) 0.7s both,
+    windows-breathe 16s ease-in-out 3.4s infinite alternate;
+}
+
+.menu-live .menu-light {
+  animation:
+    light-in 2s var(--ease) 0.7s both,
+    light-drift 26s ease-in-out 3s infinite alternate;
+}
+
+.menu-live .menu-dust {
+  animation: layer-in 2.4s var(--ease) 1.4s both;
+}
+
+.menu-live .menu-sweep {
+  animation: light-sweep 19s ease-in-out 5s infinite;
+}
+
+.menu-live .menu-car {
+  animation: car-pass 38s linear 8s infinite;
+}
+
+.menu-live .menu-glitch {
+  animation: glitch-roll 23s linear 12s infinite;
+}
+
+.menu-live .hud-live i {
+  animation: rec-blink 1.8s ease-in-out infinite;
+}
+
+.menu-live .menu-ticker-track {
+  animation: ticker 46s linear infinite;
+}
+
+.menu-live .menu-hud {
+  animation: layer-in 1.2s var(--ease) 3.7s both;
+}
+
+.menu-live .menu-ticker {
+  animation: layer-in 1.2s var(--ease) 3.9s both;
+}
+
+.menu-live .flag-mark {
+  animation: flag-appear 0.9s var(--ease) 1.4s both;
+}
+
+.menu-live .flag-cloth {
+  animation: wave 6s ease-in-out 2.3s infinite;
+}
+
+.menu-live .start-title span:first-child {
+  animation: title-in 0.9s var(--ease) 2s both;
+}
+
+.menu-live .start-title .title-accent {
+  animation: title-in 0.9s var(--ease) 2.4s both;
+}
+
+.menu-live .start-tagline {
+  animation: rise-in 0.8s var(--ease) 2.9s both;
+}
+
+.menu-live .start-actions {
+  animation: rise-in 0.8s var(--ease) 3.2s both;
+}
+
+.menu-live .start-rules {
+  animation: rise-in 0.8s var(--ease) 3.5s both;
+}
+
+/* ============ ПРОПУСК ИНТРО ============ */
+.menu-skip .menu-photo,
+.menu-skip .menu-haze,
+.menu-skip .menu-windows,
+.menu-skip .menu-light,
+.menu-skip .menu-dust,
+.menu-skip .menu-hud,
+.menu-skip .menu-ticker,
+.menu-skip .flag-mark,
+.menu-skip .start-title span,
+.menu-skip .start-tagline,
+.menu-skip .start-actions,
+.menu-skip .start-rules {
+  animation-delay: 0s !important;
+  animation-duration: 0.25s !important;
+}
+
+/* Бесконечные «живые» анимации при пропуске сохраняются, но без задержки. */
+.menu-skip .menu-photo {
+  animation:
+    photo-in 0.25s var(--ease) both,
+    camera-drift 34s ease-in-out infinite alternate !important;
+}
+
+.menu-skip .menu-windows {
+  animation: windows-on 0.25s var(--ease) both, windows-breathe 16s ease-in-out infinite alternate !important;
+}
+
+.menu-skip .menu-light {
+  animation: light-in 0.25s var(--ease) both, light-drift 26s ease-in-out infinite alternate !important;
+}
+
+/* ============ ВХОД В ЗДАНИЕ ============ */
+.menu-exit .menu-camera {
+  transition: none;
+}
+
+.menu-exit .menu-photo {
+  animation: camera-enter 1.5s cubic-bezier(0.55, 0, 0.85, 0.4) forwards !important;
+}
+
+/* Свет входа приближается вместе с камерой и разгорается: так наезд
+   читается как «мы входим внутрь», а не как затемнение кадра. */
+.menu-exit .menu-windows {
+  animation: entrance-flare 1.5s cubic-bezier(0.55, 0, 0.85, 0.4) forwards !important;
+}
+
+.menu-exit .menu-light {
+  animation: entrance-glow 1.5s ease-in forwards !important;
+}
+
+.menu-exit .start-inner,
+.menu-exit .menu-hud,
+.menu-exit .menu-ticker {
+  animation: ui-leave 0.55s var(--ease) 0.15s forwards !important;
+}
+
+.menu-exit .menu-dust,
+.menu-exit .menu-glitch {
+  animation: ui-leave 0.4s var(--ease) forwards !important;
+}
+
+.menu-exit .menu-blackout {
+  animation: blackout-in 0.65s ease-in 0.85s forwards;
+}
+
+.menu-exit .start-inner {
+  pointer-events: none;
+}
+
+/* ============ КАДРЫ ============ */
+@keyframes photo-in {
+  from { opacity: 0; transform: scale(1.02); }
+  to { opacity: 1; transform: scale(1.005); }
+}
+
+@keyframes layer-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes windows-on {
+  from { opacity: 0; }
+  to { opacity: 0.85; }
+}
+
+@keyframes windows-breathe {
+  from { opacity: 0.72; }
+  to { opacity: 1; }
+}
+
+@keyframes light-in {
+  from { opacity: 0; }
+  to { opacity: 0.75; }
+}
+
+@keyframes light-drift {
+  from { opacity: 0.6; }
+  to { opacity: 0.95; }
+}
+
+/* Дрейф камеры: масштаб 1.005 → 1.02, смещение в пределах пары пикселей. */
 @keyframes camera-drift {
-  0% { transform: scale(1.06) translate3d(-1.2%, 0.6%, 0); }
-  100% { transform: scale(1.14) translate3d(1.4%, -1.4%, 0); }
+  from { transform: scale(1.005) translate3d(-0.15%, 0.1%, 0); }
+  to { transform: scale(1.02) translate3d(0.2%, -0.15%, 0); }
+}
+
+/* Вход в здание: наезд с ускорением к центру фасада. */
+@keyframes camera-enter {
+  from { opacity: 1; transform: scale(1.02) translate3d(0, 0, 0); }
+  to { opacity: 1; transform: scale(1.75) translate3d(0, 3%, 0); }
+}
+
+@keyframes entrance-flare {
+  from { opacity: 0.85; transform: scale(1.02) translate3d(0, 0, 0); }
+  to { opacity: 1; transform: scale(1.75) translate3d(0, 3%, 0); }
+}
+
+@keyframes entrance-glow {
+  from { opacity: 0.75; }
+  60% { opacity: 1; }
+  to { opacity: 0.4; }
+}
+
+@keyframes ui-leave {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.97); }
+}
+
+@keyframes blackout-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes light-sweep {
@@ -244,9 +517,16 @@
   100% { transform: translateX(340%) rotate(12deg); opacity: 0; }
 }
 
+@keyframes car-pass {
+  0%, 4% { opacity: 0; transform: translateX(0) scale(0.9); }
+  8% { opacity: 0.5; }
+  16% { opacity: 0.45; }
+  22%, 100% { opacity: 0; transform: translateX(150vw) scale(1.05); }
+}
+
 @keyframes glitch-roll {
-  0%, 72% { transform: translateY(0); opacity: 0; }
-  74% { opacity: 0.9; }
+  0%, 94% { transform: translateY(0); opacity: 0; }
+  95% { opacity: 0.7; }
   100% { transform: translateY(105vh); opacity: 0; }
 }
 
@@ -260,8 +540,18 @@
   to { transform: translateX(-50%); }
 }
 
-@keyframes menu-in {
-  from { opacity: 0; transform: translateY(16px); }
+@keyframes flag-appear {
+  from { opacity: 0; transform: translateY(10px) scale(0.92); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes title-in {
+  from { opacity: 0; transform: translateY(14px); letter-spacing: 0.24em; }
+  to { opacity: 1; transform: translateY(0); letter-spacing: 0.1em; }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -278,25 +568,44 @@
   }
 
   .menu-photo {
-    filter: saturate(0.8) contrast(1.05) brightness(0.62);
     object-position: center 38%;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .menu-photo,
-  .menu-sweep,
-  .menu-ticker-track,
-  .menu-glitch,
-  .hud-live i {
-    animation: none;
+  .menu-live .menu-photo,
+  .menu-live .menu-windows,
+  .menu-live .menu-light,
+  .menu-live .menu-sweep,
+  .menu-live .menu-car,
+  .menu-live .menu-glitch,
+  .menu-live .menu-ticker-track,
+  .menu-live .hud-live i,
+  .menu-live .flag-cloth {
+    animation: none !important;
   }
 
-  .menu-glitch {
-    display: none;
+  .menu-live .menu-photo,
+  .menu-live .menu-haze,
+  .menu-live .menu-hud,
+  .menu-live .menu-ticker,
+  .menu-live .menu-dust {
+    opacity: 1;
   }
 
-  .menu-sweep {
-    opacity: 0;
+  .menu-live .menu-windows { opacity: 0.85; }
+  .menu-live .menu-light { opacity: 0.75; }
+
+  .menu-live .start-inner > * {
+    animation: none !important;
+    opacity: 1;
+  }
+
+  .menu-exit .menu-photo {
+    animation: none !important;
+  }
+
+  .menu-exit .menu-blackout {
+    animation: blackout-in 0.25s linear forwards !important;
   }
 }

@@ -47,7 +47,7 @@ export function renderStartScreen(
     if (mark) mark.innerHTML = `<img class="logo-image" src="${assetUrl(MEDIA.logo)}" alt="" />`;
   });
 
-  const scene = createMenuScene();
+  const scene = createMenuScene(root);
   root.prepend(scene.root);
 
   root.querySelector('[data-action="start"]')?.addEventListener('click', handlers.onStart);

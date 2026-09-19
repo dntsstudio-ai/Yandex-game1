@@ -92,28 +92,55 @@ export function renderGameScreen(
   const marksEl = root.querySelector<HTMLElement>('[data-hud="marks"]');
   const inspectorEl = root.querySelector<HTMLElement>('[data-hud="inspector"]');
 
+  // Значения HUD обновляются на каждом кадре таймера, поэтому пишем в DOM
+  // только при реальном изменении: иначе браузер пересчитывает текст
+  // шестьдесят раз в секунду и кадры игрового экрана проседают.
+  let lastTime = '';
+  let lastLow = false;
+  let lastScore = Number.NaN;
+  let lastIndex = '';
+  let lastClicks = -1;
+
   return {
     root,
     update(state, current, totalCount) {
       const ratio = Math.max(0, state.timeLeftMs / Math.max(1, state.roundDurationMs));
-      if (timeEl) {
-        timeEl.textContent = formatTime(state.timeLeftMs);
-        timeEl.classList.toggle('is-low', state.timeLeftMs <= 10_000);
+      const low = state.timeLeftMs <= 10_000;
+
+      const time = formatTime(state.timeLeftMs);
+      if (timeEl && time !== lastTime) {
+        timeEl.textContent = time;
+        lastTime = time;
       }
-      if (timeBar) {
-        timeBar.style.transform = `scaleX(${ratio})`;
-        timeBar.classList.toggle('is-low', state.timeLeftMs <= 10_000);
+      if (low !== lastLow) {
+        timeEl?.classList.toggle('is-low', low);
+        timeBar?.classList.toggle('is-low', low);
+        lastLow = low;
       }
-      if (scoreEl) {
+      // шкала — это transform, он дёшев и обновляется каждый кадр
+      if (timeBar) timeBar.style.transform = `scaleX(${ratio.toFixed(4)})`;
+
+      if (scoreEl && state.score !== lastScore) {
         scoreEl.textContent = String(state.score);
         scoreEl.classList.toggle('is-negative', state.score < 0);
+        lastScore = state.score;
       }
-      if (indexEl) indexEl.textContent = `${state.index + 1}/${totalCount}`;
-      if (accuracyEl) accuracyEl.textContent = `${liveAccuracy(state, current)}%`;
-      if (marksEl) {
-        const flags = suspiciousIds(current);
-        const marked = state.clicked.filter((id) => flags.includes(id)).length;
-        marksEl.textContent = `Отмечено признаков: ${marked}`;
+
+      const index = `${state.index + 1}/${totalCount}`;
+      if (indexEl && index !== lastIndex) {
+        indexEl.textContent = index;
+        lastIndex = index;
+      }
+
+      // точность и счётчик отметок меняются только при клике
+      if (state.clicked.length !== lastClicks) {
+        lastClicks = state.clicked.length;
+        if (accuracyEl) accuracyEl.textContent = `${liveAccuracy(state, current)}%`;
+        if (marksEl) {
+          const flags = suspiciousIds(current);
+          const marked = state.clicked.filter((id) => flags.includes(id)).length;
+          marksEl.textContent = `Отмечено признаков: ${marked}`;
+        }
       }
     },
     markHotspot(id, suspicious) {

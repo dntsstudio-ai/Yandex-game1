@@ -60,6 +60,21 @@
   animation: note-pop 0.24s var(--ease);
 }
 
+/* Вуаль: игровой экран проявляется из затемнения после входа в здание. */
+.blackout {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: #04050a;
+  opacity: 1;
+  pointer-events: none;
+  transition: opacity 0.75s var(--ease);
+}
+
+.blackout.is-clearing {
+  opacity: 0;
+}
+
 /* Всплывающие очки */
 .float-layer {
   position: absolute;

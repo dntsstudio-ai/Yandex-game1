@@ -27,6 +27,7 @@ export class App {
   private renderedKey = '';
   private lastSecond = -1;
   private menuScene: MenuScene | null = null;
+  private entering = false;
 
   constructor(host: HTMLElement, engine = new GameEngine()) {
     // Сцена фиксированного размера: в альбомном режиме телефона она
@@ -108,13 +109,37 @@ export class App {
     }
   }
 
-  /** Первый запуск: разблокируем звук и включаем музыку. */
+  /** Первый запуск: разблокируем звук, включаем музыку и «входим в здание». */
   private beginGame(): void {
+    if (this.entering) return;
+    this.entering = true;
+
     sfx.unlock();
     sfx.play('click');
     void music.start();
     this.lastSecond = -1;
-    this.engine.start();
+
+    const scene = this.menuScene;
+    if (!scene) {
+      this.entering = false;
+      this.engine.start();
+      return;
+    }
+
+    void scene.playExit().then(() => {
+      this.entering = false;
+      // экран уже затемнён сценой — партия начинается «внутри здания»
+      this.engine.start();
+      this.fadeFromBlack();
+    });
+  }
+
+  /** Плавное проявление игрового экрана после затемнения. */
+  private fadeFromBlack(): void {
+    const veil = h('div', 'blackout');
+    this.root.appendChild(veil);
+    requestAnimationFrame(() => veil.classList.add('is-clearing'));
+    window.setTimeout(() => veil.remove(), 900);
   }
 
   private buildGame(state: GameState): HTMLElement {
@@ -171,6 +196,7 @@ export class App {
         void music.start();
         this.lastSecond = -1;
         this.engine.start();
+        this.fadeFromBlack();
       },
       onAbout: () => this.openAbout(),
       onSettings: () => this.openSettings(),

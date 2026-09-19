@@ -1,15 +1,24 @@
 /**
- * Живой фон главного меню.
+ * Живая сцена главного меню.
  *
- * Слои: фотография здания с медленным движением камеры, световой луч,
- * пыль в воздухе на canvas, затемнение и рамка «камеры наблюдения».
- * Всё останавливается при уходе с экрана и при prefers-reduced-motion.
+ * Композиция не меняется — добавлена режиссура:
+ * 1. интро: из темноты проявляется город, загорается свет в здании,
+ *    затем по очереди появляются флаг, название, подзаголовок, кнопки и HUD;
+ * 2. жизнь кадра: медленный дрейф камеры, пыль, листья, дыхание света
+ *    в окнах, зерно, редкая машина в глубине;
+ * 3. выход: камера входит в здание, интерфейс гаснет, экран затемняется.
+ *
+ * Тяжёлые эффекты не используются: только transform, opacity и один canvas.
  */
 import { MEDIA, assetUrl } from '../core/assets';
 import { h } from './dom';
 
 export interface MenuScene {
   root: HTMLElement;
+  /** Мгновенно показать конечное состояние интро. */
+  skipIntro: () => void;
+  /** Проигрывает вход в здание. Завершается, когда экран затемнён. */
+  playExit: () => Promise<void>;
   destroy: () => void;
 }
 
@@ -21,23 +30,34 @@ const SLOGANS = [
   'ЛЮДИ ДЕЛАЮТ СТРАНУ СИЛЬНЕЕ',
 ];
 
-export function createMenuScene(): MenuScene {
-  const reduceMotion =
-    typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+/**
+ * Длительность входа в здание, мс. Затемнение в CSS заканчивается на 1500 мс;
+ * запас в 60 мс гарантирует, что игровой экран подменит сцену уже на чёрном
+ * кадре, а не за кадр до него.
+ */
+const EXIT_MS = 1560;
+const EXIT_MS_REDUCED = 320;
+
+export function createMenuScene(screen: HTMLElement): MenuScene {
+  const reduceMotion = prefersReducedMotion();
 
   const root = h('div', 'menu-scene');
   root.setAttribute('aria-hidden', 'true');
   document.body.classList.add('has-menu');
+  screen.classList.add('menu-intro');
+
   const ticker = SLOGANS.map((text) => `<span>${text}</span>`).join('<i>◆</i>');
 
   root.innerHTML = `
     <div class="menu-camera">
       <img class="menu-photo" alt="" decoding="async" />
+      <span class="menu-windows"></span>
+      <span class="menu-car"></span>
       <span class="menu-sweep"></span>
     </div>
     <canvas class="menu-dust"></canvas>
+    <div class="menu-light"></div>
     <div class="menu-haze"></div>
-    <div class="menu-scan"></div>
     <div class="menu-glitch"></div>
 
     <div class="menu-hud">
@@ -53,15 +73,42 @@ export function createMenuScene(): MenuScene {
     </div>
 
     <div class="menu-ticker"><div class="menu-ticker-track">${ticker}${ticker}</div></div>
+    <div class="menu-blackout"></div>
   `;
 
-  // ---------- фотография ----------
+  // ---------- фотография запускает интро ----------
+  const startTimeline = () => {
+    screen.classList.add('menu-live');
+    if (reduceMotion) screen.classList.add('menu-skip');
+  };
+
   const photo = root.querySelector<HTMLImageElement>('.menu-photo');
   if (photo) {
-    photo.addEventListener('error', () => root.classList.add('is-photoless'), { once: true });
-    photo.addEventListener('load', () => root.classList.add('is-ready'), { once: true });
+    photo.addEventListener('load', () => {
+      root.classList.add('is-ready');
+      startTimeline();
+    }, { once: true });
+    photo.addEventListener('error', () => {
+      root.classList.add('is-photoless');
+      startTimeline();
+    }, { once: true });
     photo.src = assetUrl(MEDIA.menuBackdrop);
+  } else {
+    startTimeline();
   }
+
+  // Если картинка не пришла за 2,5 с, показываем меню всё равно.
+  const safety = window.setTimeout(startTimeline, 2500);
+
+  // ---------- пропуск интро по действию игрока ----------
+  const skipIntro = () => {
+    screen.classList.add('menu-live', 'menu-skip');
+  };
+  const onSkip = () => {
+    if (!screen.classList.contains('menu-skip')) skipIntro();
+  };
+  window.addEventListener('pointerdown', onSkip, { passive: true });
+  window.addEventListener('keydown', onSkip);
 
   // ---------- параллакс от курсора ----------
   const camera = root.querySelector<HTMLElement>('.menu-camera');
@@ -71,8 +118,8 @@ export function createMenuScene(): MenuScene {
     parallaxHandler = (event: PointerEvent) => {
       const x = (event.clientX / window.innerWidth - 0.5) * 2;
       const y = (event.clientY / window.innerHeight - 0.5) * 2;
-      camera.style.setProperty('--shift-x', `${(-x * 14).toFixed(1)}px`);
-      camera.style.setProperty('--shift-y', `${(-y * 10).toFixed(1)}px`);
+      camera.style.setProperty('--shift-x', `${(-x * 8).toFixed(1)}px`);
+      camera.style.setProperty('--shift-y', `${(-y * 6).toFixed(1)}px`);
     };
     window.addEventListener('pointermove', parallaxHandler, { passive: true });
   }
@@ -85,20 +132,86 @@ export function createMenuScene(): MenuScene {
   tickClock();
   const clockTimer = window.setInterval(tickClock, 1000);
 
-  // ---------- пыль в воздухе ----------
+  // ---------- пыль и листья ----------
   const dust = root.querySelector<HTMLCanvasElement>('.menu-dust');
   const stopDust = dust && !reduceMotion ? startDust(dust) : null;
 
+  // Если машина не тянет сцену, отключаем декоративные слои и цикл пыли:
+  // спрятать холст мало — рисование продолжалось бы вхолостую.
+  const quality = reduceMotion
+    ? null
+    : watchFramerate(root, () => {
+        stopDust?.();
+      });
+
+  const cleanup = () => {
+    window.clearTimeout(safety);
+    window.clearInterval(clockTimer);
+    window.removeEventListener('pointerdown', onSkip);
+    window.removeEventListener('keydown', onSkip);
+    if (parallaxHandler) window.removeEventListener('pointermove', parallaxHandler);
+    quality?.();
+    stopDust?.();
+  };
+
   return {
     root,
+    skipIntro,
+    playExit() {
+      screen.classList.add('menu-skip', 'menu-exit');
+      // Пыль останавливаем сразу: во время наезда она не читается,
+      // а кадры нужны самой анимации камеры.
+      stopDust?.();
+      return new Promise<void>((resolve) => {
+        window.setTimeout(resolve, reduceMotion ? EXIT_MS_REDUCED : EXIT_MS);
+      });
+    },
     destroy() {
       document.body.classList.remove('has-menu');
-      window.clearInterval(clockTimer);
-      if (parallaxHandler) window.removeEventListener('pointermove', parallaxHandler);
-      stopDust?.();
+      screen.classList.remove('menu-intro', 'menu-live', 'menu-skip', 'menu-exit');
+      cleanup();
       root.remove();
     },
   };
+}
+
+/**
+ * Измеряет частоту кадров полторы секунды и, если она низкая,
+ * переводит сцену в облегчённый режим.
+ */
+function watchFramerate(root: HTMLElement, onLowFramerate: () => void): () => void {
+  let frames = 0;
+  let handle = 0;
+  let stopped = false;
+  const started = performance.now();
+
+  const tick = () => {
+    if (stopped) return;
+    frames += 1;
+    const elapsed = performance.now() - started;
+    if (elapsed < 1500) {
+      handle = requestAnimationFrame(tick);
+      return;
+    }
+    if (frames / (elapsed / 1000) < 34) {
+      root.classList.add('is-lite');
+      onLowFramerate();
+    }
+  };
+
+  const delay = window.setTimeout(() => {
+    handle = requestAnimationFrame(tick);
+  }, 1500);
+
+  return () => {
+    stopped = true;
+    window.clearTimeout(delay);
+    cancelAnimationFrame(handle);
+  };
+}
+
+export function prefersReducedMotion(): boolean {
+  return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 interface Mote {
@@ -109,9 +222,14 @@ interface Mote {
   speedY: number;
   phase: number;
   twinkle: number;
+  leaf: boolean;
 }
 
-/** Медленно плывущие частицы пыли в луче света. */
+/**
+ * Пыль в воздухе и редкие листья у земли.
+ * Один canvas вместо десятков DOM-элементов: так дешевле и по памяти,
+ * и по времени отрисовки кадра.
+ */
 function startDust(canvas: HTMLCanvasElement): () => void {
   const context = canvas.getContext('2d');
   if (!context) return () => undefined;
@@ -122,13 +240,22 @@ function startDust(canvas: HTMLCanvasElement): () => void {
   let frame = 0;
   let running = true;
 
-  /**
-   * Пересчёт размеров. Вызывается и при вставке в DOM: до неё элемент
-   * не имеет размеров, и canvas остался бы пустым.
-   */
+  const spawn = (w: number, hgt: number, leaf: boolean): Mote => ({
+    x: Math.random() * w,
+    // листья держатся нижней трети кадра — там, где деревья и трава
+    y: leaf ? hgt * (0.62 + Math.random() * 0.36) : Math.random() * hgt,
+    radius: leaf ? 1.6 + Math.random() * 1.6 : 0.7 + Math.random() * 2.1,
+    speedX: leaf ? 0.18 + Math.random() * 0.22 : -0.12 + Math.random() * 0.26,
+    speedY: leaf ? -0.05 - Math.random() * 0.08 : -0.26 - Math.random() * 0.22,
+    phase: Math.random() * Math.PI * 2,
+    twinkle: leaf ? 0.02 + Math.random() * 0.02 : 0.006 + Math.random() * 0.012,
+    leaf,
+  });
+
   const resize = () => {
-    // Пылинки размыты по природе: плотность пикселей выше 1 им не нужна.
-    const ratio = 1;
+    // Пылинки размыты по природе: рисуем их в уменьшенный буфер и растягиваем
+    // средствами CSS — пикселей для заливки становится втрое меньше.
+    const ratio = 0.6;
     const rect = canvas.getBoundingClientRect();
     if (rect.width < 2 || rect.height < 2) return;
 
@@ -140,20 +267,15 @@ function startDust(canvas: HTMLCanvasElement): () => void {
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
 
     if (!sameSize || motes.length === 0) {
-      const count = width < 640 ? 22 : 46;
-      motes = Array.from({ length: count }, () => spawn(width, height));
+      const small = width < 640;
+      const dustCount = small ? 18 : 32;
+      const leafCount = small ? 4 : 7;
+      motes = [
+        ...Array.from({ length: dustCount }, () => spawn(width, height, false)),
+        ...Array.from({ length: leafCount }, () => spawn(width, height, true)),
+      ];
     }
   };
-
-  const spawn = (w: number, hgt: number): Mote => ({
-    x: Math.random() * w,
-    y: Math.random() * hgt,
-    radius: 0.7 + Math.random() * 2.1,
-    speedX: -0.12 + Math.random() * 0.26,
-    speedY: -0.26 - Math.random() * 0.22,
-    phase: Math.random() * Math.PI * 2,
-    twinkle: 0.006 + Math.random() * 0.012,
-  });
 
   const draw = () => {
     if (!running) return;
@@ -165,20 +287,29 @@ function startDust(canvas: HTMLCanvasElement): () => void {
     context.clearRect(0, 0, width, height);
 
     for (const mote of motes) {
-      mote.x += mote.speedX;
-      mote.y += mote.speedY;
       mote.phase += mote.twinkle;
+      mote.x += mote.speedX + (mote.leaf ? Math.sin(mote.phase) * 0.25 : 0);
+      mote.y += mote.speedY + (mote.leaf ? Math.cos(mote.phase * 0.7) * 0.12 : 0);
 
       if (mote.y < -8) {
         mote.y = height + 8;
         mote.x = Math.random() * width;
       }
-      if (mote.x < -8) mote.x = width + 8;
-      if (mote.x > width + 8) mote.x = -8;
+      if (mote.leaf && (mote.x > width + 10 || mote.y < height * 0.55)) {
+        mote.x = -10;
+        mote.y = height * (0.62 + Math.random() * 0.36);
+      }
+      if (!mote.leaf && mote.x < -8) mote.x = width + 8;
+      if (!mote.leaf && mote.x > width + 8) mote.x = -8;
 
-      const alpha = 0.26 + Math.sin(mote.phase) * 0.18;
+      const alpha = mote.leaf
+        ? 0.1 + Math.abs(Math.sin(mote.phase)) * 0.1
+        : 0.26 + Math.sin(mote.phase) * 0.18;
+
       context.beginPath();
-      context.fillStyle = `rgba(255, 238, 208, ${Math.max(0.04, alpha).toFixed(3)})`;
+      context.fillStyle = mote.leaf
+        ? `rgba(150, 176, 120, ${Math.max(0.04, alpha).toFixed(3)})`
+        : `rgba(255, 238, 208, ${Math.max(0.04, alpha).toFixed(3)})`;
       context.arc(mote.x, mote.y, mote.radius, 0, Math.PI * 2);
       context.fill();
     }
