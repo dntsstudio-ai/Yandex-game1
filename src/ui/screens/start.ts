@@ -2,7 +2,7 @@
 import { SCORING } from '../../core/rules';
 import { h } from '../dom';
 import { createMenuScene, type MenuScene } from '../menuScene';
-import { MEDIA, assetExists, assetUrl } from '../../core/assets';
+import { MEDIA, assetUrl, findAsset } from '../../core/assets';
 
 export interface StartScreenHandlers {
   onStart: () => void;
@@ -40,15 +40,19 @@ export function renderStartScreen(
     </div>
   `;
 
-  // логотип-картинка заменяет нарисованный флаг, если файл добавлен
-  void assetExists(MEDIA.logo, 'image').then((exists) => {
-    if (!exists) return;
+  // Логотип-картинка заменяет нарисованный флаг и текстовый заголовок:
+  // название уже есть на самой картинке, показывать его дважды нельзя.
+  void findAsset(MEDIA.logo, 'image').then((found) => {
+    if (!found) return;
     const mark = root.querySelector('.flag-mark');
-    if (mark) mark.innerHTML = `<img class="logo-image" src="${assetUrl(MEDIA.logo)}" alt="" />`;
+    if (!mark) return;
+    mark.innerHTML = `<img class="logo-image" src="${assetUrl(found)}" alt="" decoding="async" />`;
+    document.body.classList.add('menu-has-logo');
   });
 
-  const scene = createMenuScene(root);
-  root.prepend(scene.root);
+  // Сцену монтирует контроллер — вне масштабируемой области, чтобы фон
+  // занимал весь экран даже в уменьшенном альбомном режиме.
+  const scene = createMenuScene();
 
   root.querySelector('[data-action="start"]')?.addEventListener('click', handlers.onStart);
   root.querySelector('[data-action="about"]')?.addEventListener('click', handlers.onAbout);

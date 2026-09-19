@@ -16,17 +16,23 @@ export const MEDIA = {
   menuBackdrop: 'media/menu/headquarters.webp',
 
   /** Логотип игры вместо нарисованного кодом флага. */
-  logo: 'media/ui/logo.svg',
+  logo: 'media/ui/logo.webp',
   /** Рамка панелей, 9-slice. */
   panelFrame: 'media/ui/panel-frame.png',
   /** Рамка кнопок, 9-slice. */
   buttonFrame: 'media/ui/button-frame.png',
   /** Печати на экране разбора. */
-  stampStop: 'media/ui/stamp-stop.png',
-  stampPass: 'media/ui/stamp-pass.png',
-  stampWarn: 'media/ui/stamp-warn.png',
-  stampFail: 'media/ui/stamp-fail.png',
+  stampStop: 'media/ui/stamp-stop.webp',
+  stampPass: 'media/ui/stamp-pass.webp',
+  stampWarn: 'media/ui/stamp-warn.webp',
+  stampFail: 'media/ui/stamp-fail.webp',
 } as const;
+
+/**
+ * Расширения, которые проверяются, если файла с указанным именем нет.
+ * Так ассет подхватится независимо от того, в каком формате его сохранили.
+ */
+const FALLBACK_EXTENSIONS = ['.webp', '.png', '.svg', '.jpg'];
 
 /** Путь к файлу с учётом базового адреса сборки (работает и в подпапке). */
 export function assetUrl(path: string): string {
@@ -50,4 +56,25 @@ export async function assetExists(path: string, expectedType: 'audio' | 'image')
   } catch {
     return false;
   }
+}
+
+/**
+ * Ищет ассет, перебирая расширения: достаточно положить файл с нужным
+ * именем в любом из распространённых форматов.
+ * Возвращает найденный путь или null.
+ */
+export async function findAsset(
+  path: string,
+  expectedType: 'audio' | 'image',
+): Promise<string | null> {
+  const dot = path.lastIndexOf('.');
+  const base = dot === -1 ? path : path.slice(0, dot);
+  const original = dot === -1 ? '' : path.slice(dot);
+  const candidates = [original, ...FALLBACK_EXTENSIONS.filter((ext) => ext !== original)];
+
+  for (const extension of candidates) {
+    const candidate = `${base}${extension}`;
+    if (await assetExists(candidate, expectedType)) return candidate;
+  }
+  return null;
 }

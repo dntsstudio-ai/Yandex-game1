@@ -155,10 +155,16 @@ body.has-ui-stamps .stamp--warn { --ui-stamp: var(--ui-stamp-warn); }
 body.has-ui-stamps .stamp--fail { --ui-stamp: var(--ui-stamp-fail); }
 
 body.has-ui-stamps .stamp {
+  /* у готовых печатей наклон уже нарисован — добавляем лишь чуть-чуть */
+  --stamp-tilt: -4deg;
   border: 0;
   padding: 0;
-  width: clamp(110px, 16vw, 168px);
-  aspect-ratio: 2.1 / 1;
+  width: clamp(124px, 18vw, 190px);
+  aspect-ratio: 2.13 / 1;
+  opacity: 1;
+  /* Печати нарисованы для белой бумаги: на тёмной карточке краска
+     теряется, поэтому осветляем её. */
+  filter: brightness(1.55) saturate(1.12) drop-shadow(0 6px 16px rgba(0, 0, 0, 0.55));
   background-image: var(--ui-stamp, none);
   background-size: contain;
   background-repeat: no-repeat;

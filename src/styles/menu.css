@@ -287,7 +287,7 @@
 }
 
 /* До запуска таймлайна интерфейс не показан. */
-.screen--start.menu-intro .start-inner > * {
+body.menu-intro .start-inner > * {
   opacity: 0;
 }
 
@@ -375,6 +375,54 @@
 
 .menu-live .start-rules {
   animation: rise-in 0.8s var(--ease) 3.5s both;
+}
+
+/* ---------- вариант с логотипом-картинкой ----------
+   На логотипе уже есть название, поэтому текстовый заголовок прячется
+   (остаётся для скринридеров), а сам логотип выходит одним планом. */
+body.menu-has-logo .start-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+body.menu-has-logo .start-inner::before {
+  inset: -16% -20%;
+}
+
+body.menu-live.menu-has-logo .flag-mark {
+  animation: logo-in 1.3s var(--ease) 1.2s both;
+}
+
+body.menu-live.menu-has-logo .start-tagline {
+  animation: rise-in 0.8s var(--ease) 2.3s both;
+}
+
+body.menu-live.menu-has-logo .start-actions {
+  animation: rise-in 0.8s var(--ease) 2.7s both;
+}
+
+body.menu-live.menu-has-logo .start-rules {
+  animation: rise-in 0.8s var(--ease) 3s both;
+}
+
+body.menu-live.menu-has-logo .menu-hud {
+  animation: layer-in 1.2s var(--ease) 3.2s both;
+}
+
+body.menu-live.menu-has-logo .menu-ticker {
+  animation: layer-in 1.2s var(--ease) 3.4s both;
+}
+
+@keyframes logo-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.94); }
+  60% { opacity: 1; }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* ============ ПРОПУСК ИНТРО ============ */

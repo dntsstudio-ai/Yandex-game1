@@ -21,6 +21,7 @@ import { setupViewport } from './viewport';
 
 export class App {
   private readonly engine: GameEngine;
+  private readonly host: HTMLElement;
   private readonly root: HTMLElement;
   private readonly floatLayer: HTMLElement;
   private gameScreen: GameScreen | null = null;
@@ -35,6 +36,7 @@ export class App {
     const stage = h('div', 'app-stage');
     host.replaceChildren(stage);
 
+    this.host = host;
     this.root = stage;
     this.engine = engine;
     this.floatLayer = h('div', 'float-layer');
@@ -104,6 +106,7 @@ export class App {
           onSettings: () => this.openSettings(),
         });
         this.menuScene = start.scene;
+        this.host.appendChild(start.scene.root);
         return start.root;
       }
     }

@@ -1,5 +1,5 @@
 import './styles/main.css';
-import { MEDIA, assetExists, assetUrl } from './core/assets';
+import { MEDIA, assetUrl, findAsset } from './core/assets';
 import { App } from './ui/app';
 
 const root = document.querySelector<HTMLElement>('#app');
@@ -32,8 +32,9 @@ void (async () => {
   ];
 
   const apply = async (path: string, variable: string, bodyClass?: string) => {
-    if (!(await assetExists(path, 'image'))) return false;
-    document.documentElement.style.setProperty(variable, `url("${assetUrl(path)}")`);
+    const found = await findAsset(path, 'image');
+    if (!found) return false;
+    document.documentElement.style.setProperty(variable, `url("${assetUrl(found)}")`);
     if (bodyClass) document.body.classList.add(bodyClass);
     return true;
   };

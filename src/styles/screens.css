@@ -21,9 +21,9 @@
 }
 
 .logo-image {
-  width: clamp(120px, 26vw, 230px);
+  width: clamp(260px, 56vw, 560px);
   height: auto;
-  filter: drop-shadow(0 14px 38px rgba(0, 0, 0, 0.6));
+  filter: drop-shadow(0 22px 50px rgba(0, 0, 0, 0.65));
 }
 
 .flag-mark svg {
@@ -540,13 +540,14 @@
 
 /* ---------- Штамп на экране разбора ---------- */
 .stamp {
+  --stamp-tilt: -11deg;
   position: absolute;
   top: clamp(10px, 2.4vw, 22px);
   right: clamp(10px, 2.4vw, 22px);
   padding: 8px 16px;
   border: 3px double currentColor;
   border-radius: 6px;
-  transform: rotate(-11deg);
+  transform: rotate(var(--stamp-tilt));
   opacity: 0.85;
   pointer-events: none;
   animation: stamp-hit 0.42s var(--ease-back) both;

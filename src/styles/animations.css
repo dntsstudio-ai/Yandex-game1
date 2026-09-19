@@ -38,9 +38,9 @@
 }
 
 @keyframes stamp-hit {
-  0% { opacity: 0; transform: rotate(-11deg) scale(2.4); }
-  60% { opacity: 0.95; transform: rotate(-11deg) scale(0.94); }
-  100% { opacity: 0.85; transform: rotate(-11deg) scale(1); }
+  0% { opacity: 0; transform: rotate(var(--stamp-tilt)) scale(2.4); }
+  60% { opacity: 0.95; transform: rotate(var(--stamp-tilt)) scale(0.94); }
+  100% { opacity: 0.85; transform: rotate(var(--stamp-tilt)) scale(1); }
 }
 
 @keyframes note-pop {

@@ -38,13 +38,15 @@ const SLOGANS = [
 const EXIT_MS = 1560;
 const EXIT_MS_REDUCED = 320;
 
-export function createMenuScene(screen: HTMLElement): MenuScene {
+export function createMenuScene(): MenuScene {
   const reduceMotion = prefersReducedMotion();
 
   const root = h('div', 'menu-scene');
   root.setAttribute('aria-hidden', 'true');
-  document.body.classList.add('has-menu');
-  screen.classList.add('menu-intro');
+  // Классы режиссуры живут на body: сцена и интерфейс меню лежат в разных
+  // ветках документа (фон — вне масштабируемой области), и общий предок
+  // у них только один.
+  document.body.classList.add('has-menu', 'menu-intro');
 
   const ticker = SLOGANS.map((text) => `<span>${text}</span>`).join('<i>◆</i>');
 
@@ -78,8 +80,8 @@ export function createMenuScene(screen: HTMLElement): MenuScene {
 
   // ---------- фотография запускает интро ----------
   const startTimeline = () => {
-    screen.classList.add('menu-live');
-    if (reduceMotion) screen.classList.add('menu-skip');
+    document.body.classList.add('menu-live');
+    if (reduceMotion) document.body.classList.add('menu-skip');
   };
 
   const photo = root.querySelector<HTMLImageElement>('.menu-photo');
@@ -102,10 +104,10 @@ export function createMenuScene(screen: HTMLElement): MenuScene {
 
   // ---------- пропуск интро по действию игрока ----------
   const skipIntro = () => {
-    screen.classList.add('menu-live', 'menu-skip');
+    document.body.classList.add('menu-live', 'menu-skip');
   };
   const onSkip = () => {
-    if (!screen.classList.contains('menu-skip')) skipIntro();
+    if (!document.body.classList.contains('menu-skip')) skipIntro();
   };
   window.addEventListener('pointerdown', onSkip, { passive: true });
   window.addEventListener('keydown', onSkip);
@@ -158,7 +160,7 @@ export function createMenuScene(screen: HTMLElement): MenuScene {
     root,
     skipIntro,
     playExit() {
-      screen.classList.add('menu-skip', 'menu-exit');
+      document.body.classList.add('menu-skip', 'menu-exit');
       // Пыль останавливаем сразу: во время наезда она не читается,
       // а кадры нужны самой анимации камеры.
       stopDust?.();
@@ -167,8 +169,14 @@ export function createMenuScene(screen: HTMLElement): MenuScene {
       });
     },
     destroy() {
-      document.body.classList.remove('has-menu');
-      screen.classList.remove('menu-intro', 'menu-live', 'menu-skip', 'menu-exit');
+      document.body.classList.remove(
+        'has-menu',
+        'menu-intro',
+        'menu-live',
+        'menu-skip',
+        'menu-exit',
+        'menu-has-logo',
+      );
       cleanup();
       root.remove();
     },
