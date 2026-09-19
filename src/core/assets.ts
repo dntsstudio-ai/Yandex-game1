@@ -9,9 +9,11 @@ export const MEDIA = {
   /** Фоновая музыка; при отсутствии играет синтезированная тема. */
   musicTheme: 'media/music/theme.mp3',
   /** Текстура бумаги для карточки документа. */
-  paperTexture: 'media/textures/paper.jpg',
+  paperTexture: 'media/textures/paper.webp',
   /** Фон сцены (тёмная поверхность стола). */
-  backdrop: 'media/textures/backdrop.jpg',
+  backdrop: 'media/textures/backdrop.webp',
+  /** Фон главного меню (здание компании). */
+  menuBackdrop: 'media/menu/headquarters.webp',
 } as const;
 
 /** Путь к файлу с учётом базового адреса сборки (работает и в подпапке). */

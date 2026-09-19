@@ -1,0 +1,302 @@
+/* Живой фон главного меню: камера, свет, пыль, рамка наблюдения. */
+.menu-scene {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+  background: radial-gradient(120% 90% at 50% 20%, #1a2029, #05070b 70%);
+}
+
+/* ---------- фотография и движение камеры ---------- */
+.menu-camera {
+  position: absolute;
+  inset: -6%;
+  --shift-x: 0px;
+  --shift-y: 0px;
+  transform: translate3d(var(--shift-x), var(--shift-y), 0);
+  transition: transform 0.9s var(--ease);
+}
+
+.menu-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transform: scale(1.06);
+  transition: opacity 1.4s var(--ease);
+  animation: camera-drift 42s ease-in-out infinite alternate;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.menu-scene.is-ready .menu-photo {
+  opacity: 1;
+}
+
+.menu-scene.is-photoless .menu-camera {
+  display: none;
+}
+
+/* Луч света, проходящий по фасаду. */
+.menu-sweep {
+  position: absolute;
+  top: -30%;
+  left: -40%;
+  width: 45%;
+  height: 160%;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(255, 226, 180, 0.09) 45%,
+    rgba(255, 235, 200, 0.16) 50%,
+    rgba(255, 226, 180, 0.09) 55%,
+    transparent 100%
+  );
+  transform: rotate(12deg);
+  animation: light-sweep 17s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* ---------- пыль ---------- */
+.menu-dust {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- затемнение под текст ---------- */
+.menu-haze {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(90% 65% at 50% 42%, rgba(255, 196, 132, 0.1), transparent 62%),
+    radial-gradient(120% 100% at 50% 50%, transparent 26%, rgba(4, 6, 10, 0.86) 92%),
+    linear-gradient(180deg, rgba(5, 7, 11, 0.78) 0%, rgba(5, 7, 11, 0.42) 34%, rgba(5, 7, 11, 0.9) 88%);
+}
+
+/* Сканлайны и редкий сбой сигнала — эффект записи с камеры. */
+.menu-scan {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.035) 0px,
+    rgba(255, 255, 255, 0.035) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  opacity: 0.28;
+}
+
+.menu-glitch {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 14px;
+  top: -20px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(180, 220, 255, 0.16),
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  animation: glitch-roll 9s linear infinite;
+  will-change: transform;
+}
+
+/* ---------- рамка камеры наблюдения ---------- */
+.menu-hud {
+  position: absolute;
+  inset: clamp(12px, 2.4vw, 26px);
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.hud-corner {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+}
+
+.hud-corner--tl { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.hud-corner--tr { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+.hud-corner--bl { bottom: 0; left: 0; border-right: 0; border-top: 0; }
+.hud-corner--br { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+
+.hud-live {
+  position: absolute;
+  top: 4px;
+  left: 40px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-live i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 10px rgba(255, 77, 85, 0.9);
+  animation: rec-blink 1.8s ease-in-out infinite;
+}
+
+.hud-meta {
+  position: absolute;
+  bottom: 30px;
+  left: 40px;
+  right: 40px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- бегущая строка лозунгов ---------- */
+.menu-ticker {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 9px 0;
+  overflow: hidden;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.3));
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+.menu-ticker-track {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  width: max-content;
+  white-space: nowrap;
+  font-size: 0.62rem;
+  letter-spacing: 0.24em;
+  color: rgba(255, 255, 255, 0.34);
+  animation: ticker 46s linear infinite;
+}
+
+.menu-ticker-track i {
+  color: var(--gold);
+  font-style: normal;
+  opacity: 0.6;
+}
+
+/* ---------- содержимое поверх сцены ---------- */
+.screen--start .start-inner {
+  position: relative;
+  z-index: 3;
+}
+
+/* Мягкое затемнение под заголовком: иначе текст теряется на светлом фасаде. */
+.screen--start .start-inner::before {
+  content: '';
+  position: absolute;
+  inset: -12% -18%;
+  z-index: -1;
+  background: radial-gradient(
+    58% 52% at 50% 46%,
+    rgba(4, 6, 10, 0.82) 0%,
+    rgba(4, 6, 10, 0.55) 45%,
+    transparent 78%
+  );
+  pointer-events: none;
+}
+
+.screen--start .start-title,
+.screen--start .start-tagline {
+  text-shadow: 0 8px 40px rgba(0, 0, 0, 0.85), 0 2px 12px rgba(0, 0, 0, 0.7);
+}
+
+.screen--start .start-rules {
+  border-top-color: rgba(255, 255, 255, 0.14);
+  background: rgba(5, 7, 11, 0.55);
+  border-radius: 999px;
+  padding: 10px 20px;
+}
+
+/* Появление блока меню. */
+.start-inner > * {
+  animation: menu-in 0.7s var(--ease) both;
+}
+
+.start-inner > *:nth-child(1) { animation-delay: 0.05s; }
+.start-inner > *:nth-child(2) { animation-delay: 0.14s; }
+.start-inner > *:nth-child(3) { animation-delay: 0.22s; }
+.start-inner > *:nth-child(4) { animation-delay: 0.3s; }
+.start-inner > *:nth-child(5) { animation-delay: 0.38s; }
+
+@keyframes camera-drift {
+  0% { transform: scale(1.06) translate3d(-1.2%, 0.6%, 0); }
+  100% { transform: scale(1.14) translate3d(1.4%, -1.4%, 0); }
+}
+
+@keyframes light-sweep {
+  0%, 62% { transform: translateX(0) rotate(12deg); opacity: 0; }
+  68% { opacity: 1; }
+  100% { transform: translateX(340%) rotate(12deg); opacity: 0; }
+}
+
+@keyframes glitch-roll {
+  0%, 72% { transform: translateY(0); opacity: 0; }
+  74% { opacity: 0.9; }
+  100% { transform: translateY(105vh); opacity: 0; }
+}
+
+@keyframes rec-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.18; }
+}
+
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes menu-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 640px) {
+  .hud-live,
+  .hud-meta {
+    left: 34px;
+    right: 34px;
+    font-size: 0.55rem;
+  }
+
+  .hud-meta span:last-child {
+    display: none;
+  }
+
+  .menu-photo {
+    filter: saturate(0.8) contrast(1.05) brightness(0.62);
+    object-position: center 38%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-photo,
+  .menu-sweep,
+  .menu-ticker-track,
+  .menu-glitch,
+  .hud-live i {
+    animation: none;
+  }
+
+  .menu-glitch {
+    display: none;
+  }
+
+  .menu-sweep {
+    opacity: 0;
+  }
+}

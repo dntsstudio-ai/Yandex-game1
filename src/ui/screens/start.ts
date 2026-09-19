@@ -1,6 +1,7 @@
 /** Стартовый экран. */
 import { SCORING } from '../../core/rules';
 import { h } from '../dom';
+import { createMenuScene, type MenuScene } from '../menuScene';
 
 export interface StartScreenHandlers {
   onStart: () => void;
@@ -8,7 +9,10 @@ export interface StartScreenHandlers {
   onSettings: () => void;
 }
 
-export function renderStartScreen(scenarioCount: number, handlers: StartScreenHandlers): HTMLElement {
+export function renderStartScreen(
+  scenarioCount: number,
+  handlers: StartScreenHandlers,
+): { root: HTMLElement; scene: MenuScene } {
   const root = h('section', 'screen screen--start');
   root.innerHTML = `
     <div class="start-inner">
@@ -35,8 +39,11 @@ export function renderStartScreen(scenarioCount: number, handlers: StartScreenHa
     </div>
   `;
 
+  const scene = createMenuScene();
+  root.prepend(scene.root);
+
   root.querySelector('[data-action="start"]')?.addEventListener('click', handlers.onStart);
   root.querySelector('[data-action="about"]')?.addEventListener('click', handlers.onAbout);
   root.querySelector('[data-action="settings"]')?.addEventListener('click', handlers.onSettings);
-  return root;
+  return { root, scene };
 }

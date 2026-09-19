@@ -16,6 +16,7 @@ import { renderGameScreen, type GameScreen } from './screens/game';
 import { renderRoundResult } from './screens/roundResult';
 import { renderSettings } from './screens/settings';
 import { renderStartScreen } from './screens/start';
+import type { MenuScene } from './menuScene';
 
 export class App {
   private readonly engine: GameEngine;
@@ -24,6 +25,7 @@ export class App {
   private gameScreen: GameScreen | null = null;
   private renderedKey = '';
   private lastSecond = -1;
+  private menuScene: MenuScene | null = null;
 
   constructor(root: HTMLElement, engine = new GameEngine()) {
     this.root = root;
@@ -68,6 +70,12 @@ export class App {
   }
 
   private buildScreen(state: GameState): HTMLElement {
+    // сцена меню живёт только на стартовом экране
+    if (state.phase !== 'start' && this.menuScene) {
+      this.menuScene.destroy();
+      this.menuScene = null;
+    }
+
     switch (state.phase) {
       case 'playing':
         return this.buildGame(state);
@@ -76,13 +84,16 @@ export class App {
       case 'final':
         return this.buildFinal();
       case 'start':
-      default:
+      default: {
         this.gameScreen = null;
-        return renderStartScreen(this.engine.getScenarios().length, {
+        const start = renderStartScreen(this.engine.getScenarios().length, {
           onStart: () => this.beginGame(),
           onAbout: () => this.openAbout(),
           onSettings: () => this.openSettings(),
         });
+        this.menuScene = start.scene;
+        return start.root;
+      }
     }
   }
 
