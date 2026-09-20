@@ -1,6 +1,7 @@
 /** Модальное окно настроек: музыка, звуки, громкость. */
 import { settings, type Settings } from '../../core/settings';
 import { h } from '../dom';
+import { icon } from '../icons';
 
 export function renderSettings(onClose: () => void, onChange: (next: Settings) => void): HTMLElement {
   const current = settings.get();
@@ -11,7 +12,7 @@ export function renderSettings(onClose: () => void, onChange: (next: Settings) =
 
       <label class="switch">
         <span class="switch-text">
-          <strong>Фоновая музыка</strong>
+          <strong>${icon('sound-on', 'icon--on')}${icon('sound-off', 'icon--off')}Фоновая музыка</strong>
           <small>Спокойная тема во время проверки документов</small>
         </span>
         <input type="checkbox" data-setting="music" ${current.music ? 'checked' : ''} />
@@ -20,7 +21,7 @@ export function renderSettings(onClose: () => void, onChange: (next: Settings) =
 
       <label class="switch">
         <span class="switch-text">
-          <strong>Звуковые эффекты</strong>
+          <strong>${icon('sound-on', 'icon--on')}${icon('sound-off', 'icon--off')}Звуковые эффекты</strong>
           <small>Отклик на клики, решения и таймер</small>
         </span>
         <input type="checkbox" data-setting="sound" ${current.sound ? 'checked' : ''} />

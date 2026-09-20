@@ -1,6 +1,7 @@
 import './styles/main.css';
 import { MEDIA, assetUrl, findAsset } from './core/assets';
 import { App } from './ui/app';
+import { loadIconSprite } from './ui/icons';
 
 const root = document.querySelector<HTMLElement>('#app');
 if (!root) throw new Error('Не найден контейнер #app');
@@ -61,4 +62,6 @@ void (async () => {
 
   const loadedDecor = await Promise.all(decor.map(([key, variable]) => apply(MEDIA[key], variable)));
   if (loadedDecor.every(Boolean)) document.body.classList.add('has-doc-decor');
+
+  await loadIconSprite();
 })();

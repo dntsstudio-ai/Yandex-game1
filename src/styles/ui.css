@@ -202,3 +202,93 @@ body.has-ui-stamps .stamp::after {
   0%, 100% { transform: skewY(0deg); }
   50% { transform: skewY(-8deg); }
 }
+
+/* ---------- Иконки из спрайта ----------
+   Спрайт необязателен: без него элементы просто не показываются и места
+   не занимают, а рядом остаётся текстовая подпись. Размер задаётся тем
+   местом, где иконка стоит, цвет наследуется через currentColor. */
+#icon-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.icon {
+  display: none;
+  width: var(--icon-size, 14px);
+  height: var(--icon-size, 14px);
+  flex: none;
+  vertical-align: -0.16em;
+  color: inherit;
+}
+
+body.has-ui-icons .icon {
+  display: inline-block;
+}
+
+/* Подписи HUD: иконка перед словом. */
+.hud-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+body.has-ui-icons .hud-label .icon {
+  --icon-size: 13px;
+  opacity: 0.75;
+}
+
+/* Кнопка настроек: спрайтовая шестерёнка вместо нарисованной кодом. */
+.icon--gear {
+  --icon-size: 18px;
+}
+
+body.has-ui-icons .sound-btn > svg:not(.icon) {
+  display: none;
+}
+
+/* Переключатели звука: значок меняется вместе с состоянием. */
+.switch-text strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.switch-text .icon {
+  --icon-size: 17px;
+  opacity: 0.8;
+}
+
+/* Флажок в разметке стоит после подписи, поэтому состояние читается
+   через :has() у самого переключателя, а не соседним селектором. */
+body.has-ui-icons .switch .icon--off {
+  display: none;
+}
+
+body.has-ui-icons .switch:has(input:not(:checked)) .icon--on {
+  display: none;
+}
+
+body.has-ui-icons .switch:has(input:not(:checked)) .icon--off {
+  display: inline-block;
+  opacity: 0.45;
+}
+
+/* Плитки сводки и подзаголовки протокола. */
+body.has-ui-icons .stat span,
+body.has-ui-icons .final-subtitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+body.has-ui-icons .stat .icon {
+  --icon-size: 15px;
+  opacity: 0.6;
+}
+
+body.has-ui-icons .final-subtitle .icon {
+  --icon-size: 13px;
+  opacity: 0.7;
+}

@@ -3,6 +3,7 @@ import { liveAccuracy, suspiciousIds } from '../../core/rules';
 import type { Decision, GameState, Scenario } from '../../core/types';
 import { formatTime, h } from '../dom';
 import { renderDocument } from '../documentView';
+import { icon } from '../icons';
 
 export interface GameScreenHandlers {
   onHotspot: (id: string, element: HTMLElement) => void;
@@ -27,23 +28,23 @@ export function renderGameScreen(
     <header class="hud">
       <div class="hud-stats">
         <div class="hud-item hud-item--time">
-          <span class="hud-label">На документ</span>
+          <span class="hud-label">${icon('time')}На документ</span>
           <span class="hud-value" data-hud="time">1:30</span>
         </div>
         <div class="hud-item">
-          <span class="hud-label">Очки</span>
+          <span class="hud-label">${icon('score')}Очки</span>
           <span class="hud-value" data-hud="score">0</span>
         </div>
         <div class="hud-item">
-          <span class="hud-label">Документ</span>
+          <span class="hud-label">${icon('doc')}Документ</span>
           <span class="hud-value" data-hud="index">1/${total}</span>
         </div>
         <div class="hud-item">
-          <span class="hud-label">Точность</span>
+          <span class="hud-label">${icon('accuracy')}Точность</span>
           <span class="hud-value" data-hud="accuracy">100%</span>
         </div>
         <button type="button" class="sound-btn" data-action="settings" aria-label="Настройки">
-          ${gearIcon()}
+          ${icon('settings', 'icon--gear')}${gearIcon()}
         </button>
       </div>
       <div class="timebar"><span class="timebar-fill" data-hud="timebar"></span></div>

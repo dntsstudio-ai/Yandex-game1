@@ -9,6 +9,7 @@ import { nextRank, purityBreakdown, rankFor, suspiciousIds } from '../../core/ru
 import { submitIndex } from '../../core/records';
 import type { RoundResult, Scenario, Totals } from '../../core/types';
 import { escapeHtml, formatDuration, h } from '../dom';
+import { icon } from '../icons';
 import { startDust } from '../dust';
 import { prefersReducedMotion } from '../menuScene';
 
@@ -177,7 +178,7 @@ export function renderFinalScreen(
 
         <div class="final-side">
           <section class="final-block">
-            <h3 class="final-subtitle">Из чего сложился индекс</h3>
+            <h3 class="final-subtitle">${icon('check')}Из чего сложился индекс</h3>
             <ul class="meters">
               ${meters
                 .map(
@@ -196,7 +197,7 @@ export function renderFinalScreen(
           </section>
 
           <section class="final-block">
-            <h3 class="final-subtitle">Документы</h3>
+            <h3 class="final-subtitle">${icon('doc')}Документы</h3>
             <ul class="doc-marks">${marks.join('')}</ul>
             <p class="doc-legend">
               <span><i class="dot dot--green"></i>безупречно</span>
@@ -207,11 +208,13 @@ export function renderFinalScreen(
           </section>
 
           <div class="stats">
-            <div class="stat"><span>Итоговые очки</span><strong class="${
+            <div class="stat"><span>${icon('score')}Итоговые очки</span><strong class="${
               totals.score < 0 ? 'is-negative' : ''
             }">${totals.score}</strong></div>
-            <div class="stat"><span>Точность кликов</span><strong>${totals.accuracy}%</strong></div>
-            <div class="stat"><span>Потрачено времени</span><strong>${formatDuration(
+            <div class="stat"><span>${icon('accuracy')}Точность кликов</span><strong>${
+              totals.accuracy
+            }%</strong></div>
+            <div class="stat"><span>${icon('clock')}Потрачено времени</span><strong>${formatDuration(
               totals.elapsedMs,
             )}</strong></div>
           </div>

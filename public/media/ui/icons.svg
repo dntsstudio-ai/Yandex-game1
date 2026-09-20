@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 240 24" width="240" height="24">
+  <defs>
+    <style>
+      .ico {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+    </style>
+
+    <symbol id="time" viewBox="0 0 24 24">
+      <circle class="ico" cx="12" cy="12" r="8.2"/>
+      <path class="ico" d="M12 7.1v5.2l3.4 2"/>
+    </symbol>
+
+    <symbol id="score" viewBox="0 0 24 24">
+      <path class="ico" d="M7 3.6h10v16.7l-5-3-5 3z"/>
+      <path class="ico" d="M12 7.1l1 2.2 2.4.3-1.8 1.7.4 2.4-2-1.1-2 1.1.4-2.4-1.8-1.7 2.4-.3z"/>
+    </symbol>
+
+    <symbol id="doc" viewBox="0 0 24 24">
+      <path class="ico" d="M6.3 3.5h8.2l3.2 3.2v13.8H6.3z"/>
+      <path class="ico" d="M14.5 3.5v3.2h3.2"/>
+      <path class="ico" d="M9 11h6M9 14.2h6M9 17.4h4"/>
+    </symbol>
+
+    <symbol id="accuracy" viewBox="0 0 24 24">
+      <circle class="ico" cx="12" cy="12" r="8"/>
+      <circle class="ico" cx="12" cy="12" r="3.8"/>
+      <path class="ico" d="M12 2.7v2M12 19.3v2M2.7 12h2M19.3 12h2"/>
+      <path class="ico" d="m9.8 12 1.5 1.5 2.9-3"/>
+    </symbol>
+
+    <symbol id="settings" viewBox="0 0 24 24">
+      <path class="ico" d="m9.7 4.3.6-1.4h3.4l.6 1.4 1.4.8 1.4-.4 1.7 3-1 1.2.1 1.6 1 1.2-1.7 3-1.4-.4-1.4.8-.6 1.4h-3.4l-.6-1.4-1.4-.8-1.4.4-1.7-3 1-1.2-.1-1.6-1-1.2 1.7-3 1.4.4z"/>
+      <circle class="ico" cx="12" cy="12" r="3"/>
+    </symbol>
+
+    <symbol id="sound-on" viewBox="0 0 24 24">
+      <path class="ico" d="M4.5 9v6h3.7l4.8 3.7V5.3L8.2 9z"/>
+      <path class="ico" d="M16 9.2a4.2 4.2 0 0 1 0 5.6"/>
+      <path class="ico" d="M18.5 6.8a7.5 7.5 0 0 1 0 10.4"/>
+    </symbol>
+
+    <symbol id="sound-off" viewBox="0 0 24 24">
+      <path class="ico" d="M4.5 9v6h3.7l4.8 3.7V5.3L8.2 9z"/>
+      <path class="ico" d="m17 9 4 6M21 9l-4 6"/>
+    </symbol>
+
+    <symbol id="flag" viewBox="0 0 24 24">
+      <path class="ico" d="M6.3 20V4"/>
+      <path class="ico" d="M6.3 5.1c2.8-1.8 5.2 1.7 7.9.1 2.1-1.2 3.6-.5 3.6-.5v7.1s-1.5-.8-3.6.5c-2.7 1.6-5.1-1.9-7.9-.1z"/>
+      <path class="ico" d="M4.8 20h3"/>
+    </symbol>
+
+    <symbol id="check" viewBox="0 0 24 24">
+      <circle class="ico" cx="12" cy="12" r="8.2"/>
+      <path class="ico" d="m8.2 12.1 2.6 2.7 5.2-5.5"/>
+    </symbol>
+
+    <symbol id="clock" viewBox="0 0 24 24">
+      <circle class="ico" cx="12" cy="12" r="8.2"/>
+      <path class="ico" d="M12 7v5l3.3 2.1"/>
+      <path class="ico" d="M12 2.7v1.8M21.3 12h-1.8M12 21.3v-1.8M2.7 12h1.8"/>
+    </symbol>
+  </defs>
+
+  <!-- Visible vector preview. The actual gameplay uses the symbols above. -->
+  <g color="#1A1D22">
+    <use href="#time" x="0" y="0" width="24" height="24"/>
+    <use href="#score" x="24" y="0" width="24" height="24"/>
+    <use href="#doc" x="48" y="0" width="24" height="24"/>
+    <use href="#accuracy" x="72" y="0" width="24" height="24"/>
+    <use href="#settings" x="96" y="0" width="24" height="24"/>
+    <use href="#sound-on" x="120" y="0" width="24" height="24"/>
+    <use href="#sound-off" x="144" y="0" width="24" height="24"/>
+    <use href="#flag" x="168" y="0" width="24" height="24"/>
+    <use href="#check" x="192" y="0" width="24" height="24"/>
+    <use href="#clock" x="216" y="0" width="24" height="24"/>
+  </g>
+</svg>

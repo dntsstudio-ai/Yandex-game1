@@ -27,6 +27,9 @@ export const MEDIA = {
   panelFrame: 'media/ui/panel-frame.png',
   /** Рамка кнопок, 9-slice. */
   buttonFrame: 'media/ui/button-frame.png',
+  /** Спрайт иконок HUD, настроек и сводки. */
+  icons: 'media/ui/icons.svg',
+
   /** Декор документа: скрепка, скоба степлера, след от кружки. */
   clip: 'media/ui/clip.webp',
   staple: 'media/ui/staple.webp',
