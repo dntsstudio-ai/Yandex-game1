@@ -37,6 +37,17 @@ void (async () => {
     ['buttonFrame', '--ui-button-frame', 'has-ui-button-frame'],
   ];
 
+  // Нарисованные значки: каждый включает свой класс, поэтому
+  // недостающий заменяется прежним CSS-значком поодиночке.
+  const marks: Array<[keyof typeof MEDIA, string, string]> = [
+    ['riskMarker', '--ui-risk-marker', 'has-ui-risk-marker'],
+    ['streakBadge', '--ui-streak-badge', 'has-ui-streak-badge'],
+    ['hintIcon', '--ui-hint-icon', 'has-ui-hint-icon'],
+    ['zoomIcon', '--ui-zoom-icon', 'has-ui-zoom-icon'],
+    ['caseTab', '--ui-case-tab', 'has-ui-case-tab'],
+    ['lessonDoc', '--ui-lesson-doc', 'has-ui-lesson-doc'],
+  ];
+
   const stamps: Array<[keyof typeof MEDIA, string]> = [
     ['stampStop', '--ui-stamp-stop'],
     ['stampPass', '--ui-stamp-pass'],
@@ -55,6 +66,7 @@ void (async () => {
   await Promise.all([
     ...textures.map(([key, variable]) => apply(MEDIA[key], variable)),
     ...frames.map(([key, variable, bodyClass]) => apply(MEDIA[key], variable, bodyClass)),
+    ...marks.map(([key, variable, bodyClass]) => apply(MEDIA[key], variable, bodyClass)),
   ]);
 
   const loadedStamps = await Promise.all(stamps.map(([key, variable]) => apply(MEDIA[key], variable)));

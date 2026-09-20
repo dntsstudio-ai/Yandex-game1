@@ -172,3 +172,86 @@ body.has-ui-icons .streak .icon {
   .streak.is-bonus { animation: none; }
   .screen--game .doc-slot { transition: none; }
 }
+
+/* ============ Нарисованные значки ============
+   Каждый подключается отдельно и заменяет прежний CSS-значок только
+   там, где файл действительно есть. */
+
+/* Маркер найденного риска вместо символа ⚑. */
+body.has-ui-risk-marker .hotspot.is-flag::after {
+  content: '';
+  display: inline-block;
+  width: 0.95em;
+  height: 1.05em;
+  margin-left: 0.25em;
+  vertical-align: -0.2em;
+  background-image: var(--ui-risk-marker);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* Бейдж серии: значок вместо флажка из спрайта. */
+body.has-ui-streak-badge .streak .icon {
+  display: none;
+}
+
+body.has-ui-streak-badge .streak::before {
+  content: '';
+  width: 18px;
+  height: 18px;
+  background-image: var(--ui-streak-badge);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* Лупы на кнопках инструментов. */
+body.has-ui-zoom-icon [data-action='zoom'],
+body.has-ui-hint-icon [data-action='hint'] {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 11px;
+}
+
+body.has-ui-zoom-icon [data-action='zoom']::before,
+body.has-ui-hint-icon [data-action='hint']::before {
+  content: '';
+  flex: none;
+  width: 19px;
+  height: 19px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+body.has-ui-zoom-icon [data-action='zoom']::before {
+  background-image: var(--ui-zoom-icon);
+}
+
+body.has-ui-hint-icon [data-action='hint']::before {
+  background-image: var(--ui-hint-icon);
+}
+
+/* Вкладка папки дела: подложка только под номер, а не на всю строку —
+   растянутая на всю ширину рамка распадалась на повторы.
+   Края рамки сохраняются, тянется только середина. */
+body.has-ui-case-tab .case-label {
+  padding: 7px 18px;
+  border-image: var(--ui-case-tab) 30 fill / 15px / 0 stretch;
+  color: var(--text);
+  /* Рамка нарисована в холодном неоне: приглушаем, чтобы она не спорила
+     с бумажной сценой, но подпись оставляем читаемой. */
+  filter: saturate(0.6) brightness(0.86);
+}
+
+body.has-ui-case-tab .case {
+  align-items: stretch;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+body.has-ui-case-tab .case-state {
+  align-self: center;
+}

@@ -6,6 +6,8 @@
 @import './document.css';
 @import './screens.css';
 @import './ui.css';
+@import './guide.css';
+@import './tutorial.css';
 @import './game.css';
 @import './final.css';
 @import './menu.css';

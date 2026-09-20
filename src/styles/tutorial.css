@@ -1,0 +1,195 @@
+/*
+ * Обучение и предложение его пройти.
+ *
+ * Учебный документ — тот же компонент, что и в игре, поэтому
+ * подсветка, отметки и флажок выглядят там ровно так же, как потом
+ * в партии.
+ */
+.screen--offer,
+.screen--tutorial {
+  display: grid;
+  place-items: center;
+}
+
+/* Карточки обучения оформлены как карточка разбора раунда:
+   один и тот же «бланк» на всех экранах между документами. */
+.offer-inner,
+.tutorial-inner {
+  position: relative;
+  background: linear-gradient(180deg, rgba(30, 36, 48, 0.88), rgba(16, 20, 28, 0.93));
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-l);
+  box-shadow: var(--shadow-card);
+  animation: rise 0.32s var(--ease);
+}
+
+/* ---------- предложение ---------- */
+.offer-inner {
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  text-align: center;
+  width: min(520px, 100%);
+  padding: clamp(24px, 4vw, 38px);
+}
+
+.offer-title {
+  font-size: clamp(1.1rem, 3.6vw, 1.5rem);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.offer-text {
+  color: var(--text-soft);
+  font-size: 0.92rem;
+  max-width: 38ch;
+}
+
+.offer-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+/* ---------- слайды ---------- */
+.tutorial-inner {
+  display: grid;
+  gap: clamp(8px, 1.4vh, 14px);
+  justify-items: center;
+  text-align: center;
+  width: min(720px, 100%);
+  padding: clamp(18px, 3vw, 30px);
+}
+
+.tutorial-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  color: var(--text-dim);
+}
+
+.tutorial-label {
+  font-weight: 700;
+  color: var(--red);
+}
+
+.tutorial-step {
+  font-variant-numeric: tabular-nums;
+}
+
+.tutorial-title {
+  font-size: clamp(1rem, 3.2vw, 1.3rem);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.tutorial-text {
+  color: var(--text-soft);
+  font-size: 0.88rem;
+  max-width: 46ch;
+}
+
+.tutorial-guide {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+/* На слайде гид крупнее, чем в игре: здесь он главный говорящий. */
+.tutorial-guide .guide-figure {
+  width: clamp(76px, 11vw, 104px);
+}
+
+.tutorial-stage {
+  position: relative;
+  width: 100%;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+/* Учебный документ уже игрового: на слайде он один и не спорит с текстом. */
+.tutorial-stage .doc {
+  width: min(560px, 100%);
+  font-size: 0.9rem;
+}
+
+.tutorial-decision {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.tutorial-decision .is-chosen {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* ---------- демонстрация таймера ---------- */
+.tutorial-timer {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.tutorial-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.6rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+body.has-ui-icons .tutorial-clock .icon {
+  --icon-size: 18px;
+  opacity: 0.7;
+}
+
+.tutorial-clock b.is-low {
+  color: var(--red);
+}
+
+.tutorial-timer .timebar {
+  width: 100%;
+}
+
+/* ---------- ошибочный клик ---------- */
+.tutorial-mistake {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 77, 85, 0.16);
+  border: 1px solid rgba(255, 77, 85, 0.5);
+  color: var(--red);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  animation: note-pop 0.3s var(--ease);
+}
+
+.tutorial-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-mistake { animation: none; }
+}

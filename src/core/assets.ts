@@ -27,6 +27,14 @@ export const MEDIA = {
   panelFrame: 'media/ui/panel-frame.png',
   /** Рамка кнопок, 9-slice. */
   buttonFrame: 'media/ui/button-frame.png',
+  /** Нарисованные значки игровых инструментов и меток. */
+  riskMarker: 'media/ui/risk-marker.webp',
+  streakBadge: 'media/ui/streak-badge.webp',
+  hintIcon: 'media/ui/hint.webp',
+  zoomIcon: 'media/ui/zoom.webp',
+  caseTab: 'media/ui/case-tab.webp',
+  lessonDoc: 'media/ui/lesson-doc.webp',
+
   /** Спрайт иконок HUD, настроек и сводки. */
   icons: 'media/ui/icons.svg',
 

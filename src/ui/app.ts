@@ -16,6 +16,7 @@ import { renderGameScreen, type GameScreen } from './screens/game';
 import { renderRoundResult } from './screens/roundResult';
 import { renderSettings } from './screens/settings';
 import { renderStartScreen } from './screens/start';
+import { renderTutorial, renderTutorialOffer, type TutorialScreen } from './screens/tutorial';
 import type { MenuScene } from './menuScene';
 import { setupViewport } from './viewport';
 
@@ -29,7 +30,13 @@ export class App {
   private lastSecond = -1;
   private menuScene: MenuScene | null = null;
   private finalScreen: FinalScreen | null = null;
+  private tutorialScreen: TutorialScreen | null = null;
   private entering = false;
+  /**
+   * Обучение живёт между меню и первым документом и движка не касается:
+   * пока оно на экране, партия ещё не начата.
+   */
+  private interlude: 'offer' | 'tutorial' | null = null;
 
   constructor(host: HTMLElement, engine = new GameEngine()) {
     // Сцена фиксированного размера: в альбомном режиме телефона она
@@ -50,6 +57,10 @@ export class App {
 
   private onState(state: GameState): void {
     document.body.classList.toggle('is-final', state.phase === 'final');
+
+    // Пока показывается обучение, движок стоит на стартовой фазе
+    // и перерисовывать экран не нужно.
+    if (this.interlude) return;
 
     const key = `${state.phase}:${state.index}:${state.results.length}`;
     if (key !== this.renderedKey) {
@@ -146,10 +157,66 @@ export class App {
 
     void scene.playExit().then(() => {
       this.entering = false;
-      // экран уже затемнён сценой — партия начинается «внутри здания»
-      this.engine.start();
+      // экран уже затемнён сценой — дальше предложение обучения
+      this.showOffer();
       this.fadeFromBlack();
     });
+  }
+
+  /** Предложение пройти обучение перед первой партией. */
+  private showOffer(): void {
+    // Сцена меню больше не нужна: она продолжала бы крутить анимации,
+    // а её класс menu-exit держал бы экран затемнённым.
+    if (this.menuScene) {
+      this.menuScene.destroy();
+      this.menuScene = null;
+    }
+
+    this.interlude = 'offer';
+    this.renderInterlude(
+      renderTutorialOffer(
+        () => {
+          sfx.play('click');
+          this.showTutorial();
+        },
+        () => {
+          sfx.play('click');
+          this.startGame();
+        },
+      ),
+    );
+  }
+
+  private showTutorial(): void {
+    this.interlude = 'tutorial';
+    const screen = renderTutorial({
+      onFinish: () => this.startGame(),
+      onHit: () => sfx.play('hit'),
+      onMiss: () => sfx.play('miss'),
+      onClick: () => sfx.play('click'),
+    });
+    this.tutorialScreen = screen;
+    this.renderInterlude(screen.root);
+  }
+
+  /** Запуск партии после обучения или в обход него. */
+  private startGame(): void {
+    this.tutorialScreen?.destroy();
+    this.tutorialScreen = null;
+    this.interlude = null;
+    this.lastSecond = -1;
+    // renderedKey сброшен, поэтому первый же кадр движка нарисует экран
+    this.renderedKey = '';
+    this.engine.start();
+  }
+
+  /** Отрисовка экрана, который живёт вне движка. */
+  private renderInterlude(node: HTMLElement): void {
+    for (const child of Array.from(this.root.children)) {
+      if (child !== this.floatLayer && !child.classList.contains('rotate-hint')) child.remove();
+    }
+    this.root.prepend(node);
+    node.classList.add('screen-enter');
   }
 
   /** Плавное проявление игрового экрана после затемнения. */

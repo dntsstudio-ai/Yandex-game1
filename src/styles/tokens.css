@@ -58,4 +58,10 @@
   --ui-clip: none;
   --ui-staple: none;
   --ui-coffee-ring: none;
+  --ui-risk-marker: none;
+  --ui-streak-badge: none;
+  --ui-hint-icon: none;
+  --ui-zoom-icon: none;
+  --ui-case-tab: none;
+  --ui-lesson-doc: none;
 }
