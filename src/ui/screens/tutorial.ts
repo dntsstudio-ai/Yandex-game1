@@ -109,10 +109,10 @@ const LESSON_CUTS = {
   /** Ответ на ошибочную отметку. */
   missNote: [22.95, 28.35],
   /** Слайд 3. */
-  slide3a: [28.75, 33.1],
-  slide3b: [33.2, 40.7],
-  /** Ответ на принятое решение. */
-  decisionNote: [41.0, 45.6],
+  slide3a: [28.75, 34.4],
+  slide3b: [34.6, 40.7],
+  /** Ответ на решение «пропустить»: инспектор поправляет игрока. */
+  passNote: [41.0, 45.6],
   /** Слайд 4. */
   slide4a: [45.85, 50.3],
   slide4b: [50.45, 55.2],
@@ -478,13 +478,17 @@ export function renderTutorial(handlers: TutorialHandlers): TutorialScreen {
         handlers.onClick();
         box.querySelectorAll('button').forEach((other) => other.classList.remove('is-chosen'));
         button.classList.add('is-chosen');
+        const stopped = button.classList.contains('btn--stop');
         guide.setPose('ok');
         speech.say(
-          button.classList.contains('btn--stop')
+          stopped
             ? 'Верно. В этом документе нарушение, его нужно остановить.'
             : 'Здесь-то нарушение есть, так что верно «ОСТАНОВИТЬ». Но выбор всегда твой.',
         );
-        void voice.play(lesson('decisionNote'));
+        // Записан только ответ на «пропустить» — там инспектор поправляет
+        // игрока. На верное решение он молчит, и подменять это нечем.
+        if (stopped) voice.stop();
+        else void voice.play(lesson('passNote'));
         allowNext();
       });
     });
@@ -510,10 +514,12 @@ export function renderTutorial(handlers: TutorialHandlers): TutorialScreen {
 
     if (slide.stage === 'doc' && stageEl) stageEl.appendChild(buildDoc(slide.expect));
     if (slide.stage === 'decision' && stageEl) stageEl.appendChild(buildDecision());
-    if (slide.stage === 'timer' && stageEl) stageEl.appendChild(buildTimer());
 
     // На слайдах с действием переход открывается только после него.
     playLines(slide.lines, () => {
+      // Таймер заводится, когда инспектор договорил: запущенный вместе
+      // с репликами, он перебивал их своим текстом на полуслове.
+      if (slide.stage === 'timer' && stageEl) stageEl.appendChild(buildTimer());
       if (slide.stage === 'none') allowNext();
       else advance = null;
     });
