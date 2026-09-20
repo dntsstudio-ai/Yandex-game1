@@ -10,6 +10,10 @@ export const MEDIA = {
   musicTheme: 'media/music/theme.mp3',
   /** Текстура бумаги для карточки документа. */
   paperTexture: 'media/textures/paper.webp',
+  /** Бумага в клетку: бланки и накладные. */
+  paperGrid: 'media/textures/paper-grid.webp',
+  /** Состаренная бумага: договоры и служебные записки. */
+  paperAged: 'media/textures/paper-aged.webp',
   /** Фон сцены (тёмная поверхность стола). */
   backdrop: 'media/textures/backdrop.webp',
   /** Фон главного меню (здание компании). */
@@ -23,6 +27,11 @@ export const MEDIA = {
   panelFrame: 'media/ui/panel-frame.png',
   /** Рамка кнопок, 9-slice. */
   buttonFrame: 'media/ui/button-frame.png',
+  /** Декор документа: скрепка, скоба степлера, след от кружки. */
+  clip: 'media/ui/clip.webp',
+  staple: 'media/ui/staple.webp',
+  coffeeRing: 'media/ui/coffee-ring.webp',
+
   /** Печати на экране разбора. */
   stampStop: 'media/ui/stamp-stop.webp',
   stampPass: 'media/ui/stamp-pass.webp',

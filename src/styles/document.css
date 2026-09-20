@@ -312,3 +312,80 @@
   text-decoration: line-through;
   text-decoration-color: rgba(163, 54, 59, 0.5);
 }
+
+/* ---------- Сорта бумаги ----------
+   Разные документы печатают на разной бумаге: бланки — на клетчатой,
+   договоры и записки желтеют в папках. Если файла нет, подставляется
+   основная текстура, а без неё — просто градиент. */
+.doc--paper-grid {
+  background-image:
+    linear-gradient(180deg, #fdfdfb, #f4f3ee),
+    var(--paper-grid-image, var(--paper-image, none));
+}
+
+.doc--paper-aged {
+  background-image:
+    linear-gradient(180deg, #fdf9f1, #f5ecdb),
+    var(--paper-aged-image, var(--paper-image, none));
+}
+
+/* ---------- Украшения бумаги ----------
+   Скрепка, скоба степлера и след от кружки. Лежат поверх карточки,
+   кликам не мешают и появляются только вместе с файлами: без них
+   пустые элементы ничего не рисуют.
+
+   Своей анимации появления у них нет намеренно. Раньше была, и из-за
+   переменной --decor-tilt внутри кадров браузер не мог отдать её
+   композитору: даже завершённая, она заставляла перерисовывать всю
+   карточку каждый кадр — 25 кадров в секунду вместо 60. Украшения
+   и так выезжают вместе с карточкой, у которой есть своя анимация. */
+.doc-decor {
+  position: absolute;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+  opacity: 0;
+}
+
+body.has-doc-decor .doc--decor-clip .doc-decor--clip,
+body.has-doc-decor .doc--decor-clip-coffee .doc-decor--clip {
+  background-image: var(--ui-clip);
+  /* Скрепка лежит целиком внутри карточки: у .doc включён overflow: hidden,
+     и свешивающуюся за край срезало бы ровной линией. */
+  top: clamp(8px, 1.6%, 16px);
+  right: clamp(20px, 7%, 56px);
+  width: clamp(34px, 5.4%, 46px);
+  height: clamp(62px, 9.6%, 82px);
+  opacity: 0.92;
+  transform: rotate(var(--decor-tilt, -3deg));
+  filter: drop-shadow(0 3px 4px rgba(20, 18, 14, 0.32));
+}
+
+body.has-doc-decor .doc--decor-staple .doc-decor--staple,
+body.has-doc-decor .doc--decor-staple-coffee .doc-decor--staple {
+  background-image: var(--ui-staple);
+  top: clamp(16px, 3%, 28px);
+  left: clamp(22px, 4.2%, 38px);
+  width: clamp(34px, 4.8%, 46px);
+  height: clamp(24px, 3.5%, 34px);
+  opacity: 0.8;
+  transform: rotate(calc(var(--decor-tilt, -3deg) * -2));
+  filter: drop-shadow(0 2px 3px rgba(20, 18, 14, 0.34));
+}
+
+body.has-doc-decor .doc--decor-coffee .doc-decor--coffee,
+body.has-doc-decor .doc--decor-clip-coffee .doc-decor--coffee,
+body.has-doc-decor .doc--decor-staple-coffee .doc-decor--coffee {
+  background-image: var(--ui-coffee-ring);
+  /* след от кружки — в нижнем углу, под текстом и бледный */
+  right: -8%;
+  bottom: -6%;
+  width: clamp(120px, 34%, 230px);
+  aspect-ratio: 1;
+  opacity: 0.22;
+  mix-blend-mode: multiply;
+  transform: rotate(calc(var(--decor-tilt, -3deg) * 3));
+}
+
+

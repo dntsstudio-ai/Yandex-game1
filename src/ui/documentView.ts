@@ -92,6 +92,32 @@ function renderBlock(scenario: Scenario, block: DocBlock): string {
   }
 }
 
+/**
+ * Сорт бумаги по типу документа: бланки печатают на клетчатой,
+ * договоры и записки лежат в папках и желтеют.
+ */
+const KIND_PAPER: Record<Scenario['kind'], 'plain' | 'grid' | 'aged'> = {
+  email: 'plain',
+  chat: 'plain',
+  contract: 'aged',
+  memo: 'aged',
+  invoice: 'grid',
+  form: 'grid',
+};
+
+/**
+ * Украшения бумаги: скрепка, скоба степлера, след от кружки.
+ * Выбор зависит только от идентификатора ситуации, поэтому документ
+ * выглядит одинаково при каждом заходе, но по-разному у разных документов.
+ */
+const DECOR = ['clip', 'staple', 'coffee', 'clip-coffee', 'staple-coffee', 'none'] as const;
+
+function decorFor(id: string): (typeof DECOR)[number] {
+  let hash = 0;
+  for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) % 100000;
+  return DECOR[hash % DECOR.length];
+}
+
 const KIND_LABEL: Record<Scenario['kind'], string> = {
   email: 'Электронное письмо',
   chat: 'Переписка',
@@ -103,7 +129,10 @@ const KIND_LABEL: Record<Scenario['kind'], string> = {
 
 /** Карточка документа целиком. */
 export function renderDocument(scenario: Scenario): HTMLElement {
-  const card = h('article', 'doc');
+  const decor = decorFor(scenario.id);
+  const card = h('article', `doc doc--paper-${KIND_PAPER[scenario.kind]} doc--decor-${decor}`);
+  // угол поворота украшений — тоже от идентификатора, чтобы не прыгал
+  card.style.setProperty('--decor-tilt', `${(scenario.id.length % 7) - 3}deg`);
   card.innerHTML = `
     <header class="doc-head">
       <span class="doc-kind doc-kind--${scenario.kind}">${KIND_LABEL[scenario.kind]}</span>
@@ -113,6 +142,9 @@ export function renderDocument(scenario: Scenario): HTMLElement {
     <div class="doc-body">
       ${scenario.blocks.map((block) => renderBlock(scenario, block)).join('')}
     </div>
+    <span class="doc-decor doc-decor--clip" aria-hidden="true"></span>
+    <span class="doc-decor doc-decor--staple" aria-hidden="true"></span>
+    <span class="doc-decor doc-decor--coffee" aria-hidden="true"></span>
   `;
   return card;
 }

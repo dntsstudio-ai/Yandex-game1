@@ -16,8 +16,19 @@ new App(root);
 void (async () => {
   const textures: Array<[keyof typeof MEDIA, string]> = [
     ['paperTexture', '--paper-image'],
+    ['paperGrid', '--paper-grid-image'],
+    ['paperAged', '--paper-aged-image'],
     ['backdrop', '--backdrop-image'],
     ['finalBackdrop', '--final-image'],
+  ];
+
+  // Декор бумаги: скрепка, скоба и кофейный след. Появляются, только если
+  // есть все три файла, — иначе на одних документах украшения были бы,
+  // а на других нет.
+  const decor: Array<[keyof typeof MEDIA, string]> = [
+    ['clip', '--ui-clip'],
+    ['staple', '--ui-staple'],
+    ['coffeeRing', '--ui-coffee-ring'],
   ];
 
   const frames: Array<[keyof typeof MEDIA, string, string]> = [
@@ -47,4 +58,7 @@ void (async () => {
 
   const loadedStamps = await Promise.all(stamps.map(([key, variable]) => apply(MEDIA[key], variable)));
   if (loadedStamps.every(Boolean)) document.body.classList.add('has-ui-stamps');
+
+  const loadedDecor = await Promise.all(decor.map(([key, variable]) => apply(MEDIA[key], variable)));
+  if (loadedDecor.every(Boolean)) document.body.classList.add('has-doc-decor');
 })();

@@ -49,6 +49,13 @@
 
   /* Необязательные изображения: подставляются, если добавлены в public/media */
   --paper-image: none;
+  --paper-grid-image: none;
+  --paper-aged-image: none;
   --backdrop-image: none;
   --final-image: none;
+
+  /* Декор бумаги: подключается только когда есть все три файла. */
+  --ui-clip: none;
+  --ui-staple: none;
+  --ui-coffee-ring: none;
 }
