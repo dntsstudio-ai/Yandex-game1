@@ -15,6 +15,20 @@ const TARGET_PEAK = 0.7;
     и без него в колонках слышен щелчок. */
 const FADE_OUT = 0.012;
 
+/** Уровень, ниже которого считаем, что звука нет (−42 dB). */
+const SILENCE_LEVEL = 0.008;
+
+/**
+ * Пауза, после которой звук считается законченным.
+ *
+ * Присланные файлы — это дорожки: в `click` три щелчка подряд, в `tick`
+ * тридцать четыре тика. Игра же проигрывает такой звук на каждое
+ * нажатие и каждую секунду таймера, поэтому берётся только первое
+ * событие. Порог 0,1 с выбран по всему набору: при 0,08 с обрезался бы
+ * `miss`, у которого внутри есть короткий провал.
+ */
+const MAX_GAP = 0.1;
+
 interface Sample {
   buffer: AudioBuffer;
   /** Множитель громкости, выравнивающий пик к TARGET_PEAK. */
@@ -37,6 +51,55 @@ function peakOf(buffer: AudioBuffer): number {
   return peak;
 }
 
+/**
+ * Отрезает тишину в начале и всё после первой заметной паузы.
+ *
+ * Начальная тишина — это задержка отклика: у `stamp` её 128 мс, и удар
+ * штампа раздавался бы заметно позже нажатия.
+ */
+function trim(context: AudioContext, buffer: AudioBuffer): AudioBuffer {
+  const channels: Float32Array[] = [];
+  for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+    channels.push(buffer.getChannelData(channel));
+  }
+
+  const amplitude = (index: number): number => {
+    let peak = 0;
+    for (const data of channels) {
+      const value = Math.abs(data[index]);
+      if (value > peak) peak = value;
+    }
+    return peak;
+  };
+
+  const length = buffer.length;
+  let start = 0;
+  while (start < length && amplitude(start) < SILENCE_LEVEL) start += 1;
+  if (start >= length) return buffer;
+
+  const gapLength = Math.round(MAX_GAP * buffer.sampleRate);
+  let end = start;
+  let quiet = 0;
+  for (let i = start; i < length; i += 1) {
+    if (amplitude(i) < SILENCE_LEVEL) {
+      quiet += 1;
+      if (quiet >= gapLength) break;
+    } else {
+      quiet = 0;
+      end = i;
+    }
+  }
+
+  const size = end - start + 1;
+  if (size >= length) return buffer;
+
+  const trimmed = context.createBuffer(buffer.numberOfChannels, size, buffer.sampleRate);
+  for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+    trimmed.getChannelData(channel).set(channels[channel].subarray(start, start + size));
+  }
+  return trimmed;
+}
+
 async function loadOne(context: AudioContext, name: string): Promise<void> {
   // Через findAsset, а не прямым запросом: он сверяется со списком файлов,
   // собранным при сборке, и не сыплет ошибками 404 на каждый звук,
@@ -47,7 +110,8 @@ async function loadOne(context: AudioContext, name: string): Promise<void> {
   try {
     const response = await fetch(assetUrl(path));
     if (!response.ok) return;
-    const buffer = await context.decodeAudioData(await response.arrayBuffer());
+    const decoded = await context.decodeAudioData(await response.arrayBuffer());
+    const buffer = trim(context, decoded);
     const peak = peakOf(buffer);
     samples.set(name, { buffer, gain: peak > 0.001 ? TARGET_PEAK / peak : 1 });
   } catch {
