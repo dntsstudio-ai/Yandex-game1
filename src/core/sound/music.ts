@@ -6,7 +6,7 @@
  * минорный эмбиент из четырёх аккордов с арпеджио и мягким басом.
  * Выключается в настройках.
  */
-import { MEDIA, assetExists, assetUrl } from '../assets';
+import { MEDIA, assetUrl, findAsset } from '../assets';
 import { settings } from '../settings';
 import { audioContext, masterBus, reverbBus, unlockAudio } from './context';
 
@@ -32,6 +32,7 @@ class MusicEngine {
   private nextChordAt = 0;
   private playing = false;
   private useFile: boolean | null = null;
+  private filePath: string | null = null;
 
   /** Запуск музыки (только после действия пользователя). */
   async start(): Promise<void> {
@@ -39,7 +40,8 @@ class MusicEngine {
     this.playing = true;
 
     if (this.useFile === null) {
-      this.useFile = await assetExists(MEDIA.musicTheme, 'audio');
+      this.filePath = await findAsset(MEDIA.musicTheme, 'audio');
+      this.useFile = this.filePath !== null;
     }
 
     if (!settings.get().music) {
@@ -95,7 +97,7 @@ class MusicEngine {
 
   private startFile(): void {
     if (!this.element) {
-      this.element = new Audio(assetUrl(MEDIA.musicTheme));
+      this.element = new Audio(assetUrl(this.filePath ?? MEDIA.musicTheme));
       this.element.loop = true;
       this.element.preload = 'auto';
       // файл повреждён или недоступен — переходим на синтезированную тему
