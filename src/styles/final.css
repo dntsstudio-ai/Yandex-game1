@@ -1,0 +1,507 @@
+/*
+ * Итоговый экран: протокол проверки.
+ *
+ * Появление идёт по тактам через класс .is-revealing на экране;
+ * .is-shown мгновенно показывает всё (клик игрока или reduced-motion).
+ * Анимируются только transform и opacity.
+ */
+.screen--final .final-inner {
+  position: relative;
+  overflow: hidden;
+  gap: clamp(8px, 1.4vh, 14px);
+  /* Колонки протокола включаются по ширине самой карточки, а не окна:
+     в режиме подгонки (альбом на телефоне) сцена всегда 1440 px, и
+     медиазапрос по окну там давал одну колонку на широком поле. */
+  container: final / inline-size;
+}
+
+.final-dust {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.final-inner > *:not(.final-dust):not(.tick) {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- шапка ---------- */
+.final-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  white-space: nowrap;
+  width: 100%;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.final-label b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em;
+}
+
+.final-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  color: var(--text-soft);
+}
+
+.final-docs {
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+
+/* ---------- печать протокола ----------
+   Кладётся в правом верхнем углу колонки с кольцом: там поле свободно,
+   и печать читается как оттиск поверх бланка. Селектор с .final-top —
+   чтобы перебить position: relative у прямых детей карточки. */
+.final-top .final-stamp {
+  --stamp-tilt: -7deg;
+  position: absolute;
+  top: -16px;
+  right: -14px;
+  z-index: 3;
+  font-size: 0.86rem;
+  pointer-events: none;
+}
+
+/* ---------- две колонки на широком экране ---------- */
+.final-body {
+  display: grid;
+  gap: clamp(14px, 2.4vw, 28px);
+  width: 100%;
+  align-items: center;
+}
+
+@container final (min-width: 620px) {
+  .final-body {
+    grid-template-columns: minmax(240px, 0.86fr) minmax(330px, 1.14fr);
+  }
+
+  .final-top {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    justify-content: center;
+    gap: 16px;
+  }
+
+  .final-side {
+    display: grid;
+    gap: clamp(12px, 1.8vh, 18px);
+    align-content: center;
+    padding-left: clamp(14px, 2.4vw, 28px);
+    border-left: 1px solid var(--line);
+  }
+
+  .final-body {
+    gap: 0;
+  }
+
+  .final-top {
+    padding-right: clamp(14px, 2.4vw, 28px);
+  }
+
+  /* Сводка встала в колонку — три плитки читаются как строки протокола. */
+  .screen--final .stats {
+    grid-template-columns: 1fr;
+    margin-top: 0;
+  }
+}
+
+/* ---------- верхний блок: кольцо и вердикт ---------- */
+.final-top {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(16px, 4vw, 40px);
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.final-verdict {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  text-align: center;
+  max-width: 34ch;
+}
+
+.final-record {
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.final-record b {
+  color: var(--text);
+}
+
+.final-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: #08301f;
+  background: linear-gradient(135deg, var(--green), #8ff0c2);
+  animation: badge-pulse 2.4s ease-in-out infinite;
+}
+
+/* ---------- путь до следующего звания ---------- */
+.final-next {
+  display: grid;
+  gap: 5px;
+  justify-items: center;
+  width: min(100%, 30ch);
+  margin-top: 2px;
+}
+
+.final-next-line {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+.final-next-line b {
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.final-next-track {
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.final-next-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(232, 184, 106, 0.55), var(--gold));
+  transform-origin: left center;
+  transform: scaleX(var(--next-ratio, 0));
+}
+
+.final-next-top {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--gold);
+}
+
+/* ---------- блоки протокола ---------- */
+.final-block {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+}
+
+.final-subtitle {
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  text-align: left;
+}
+
+/* ---------- шкалы разбора индекса ---------- */
+.meters {
+  display: grid;
+  gap: 6px;
+}
+
+.meter {
+  display: grid;
+  grid-template-columns: minmax(126px, 1fr) minmax(56px, 1.7fr) auto auto;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.78rem;
+}
+
+.meter-caption {
+  color: var(--text-soft);
+  text-align: left;
+}
+
+.meter-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  transform-origin: left center;
+  transform: scaleX(var(--meter-ratio, 0));
+}
+
+.meter--good .meter-fill { background: var(--green); }
+.meter--accent .meter-fill { background: var(--blue); }
+.meter--critical .meter-fill { background: var(--red); }
+
+.meter-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.meter-points {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--text-dim);
+  min-width: 3.2ch;
+  text-align: right;
+}
+
+/* ---------- лента документов ---------- */
+.doc-marks {
+  /* Ровно пять отметок в ряд: десять документов ложатся двумя рядами
+     и не «ломаются» на 9 + 1 при узкой колонке. */
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 54px));
+  justify-content: center;
+  gap: 8px;
+  margin: 2px 0;
+}
+
+.doc-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: default;
+  transition: transform 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+
+.doc-mark:hover {
+  transform: translateY(-2px);
+  border-color: var(--text-dim);
+}
+
+.doc-mark-glyph {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.doc-mark-number {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  font-size: 0.58rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.doc-mark--good { border-color: rgba(55, 217, 154, 0.5); }
+.doc-mark--good .doc-mark-glyph { color: var(--green); }
+.doc-mark--warning { border-color: rgba(245, 178, 60, 0.5); }
+.doc-mark--warning .doc-mark-glyph { color: var(--amber); }
+.doc-mark--critical { border-color: rgba(255, 77, 85, 0.5); }
+.doc-mark--critical .doc-mark-glyph { color: var(--red); }
+.doc-mark--neutral .doc-mark-glyph { color: var(--text-soft); }
+
+.doc-legend {
+  /* Два столбца: четыре подписи не рвутся на «3 + 1» в узкой колонке. */
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 3px 18px;
+  justify-content: center;
+  font-size: 0.66rem;
+  color: var(--text-dim);
+}
+
+.doc-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.doc-legend i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.dot--amber { background: var(--amber); }
+.dot--grey { background: var(--text-soft); }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ============ ТАКТЫ ПОЯВЛЕНИЯ ============
+   Длительность такта задаётся переменной: на маленьком экране протокол
+   собирается быстрее, чтобы кнопка «Играть снова» не заставляла ждать. */
+.screen--final {
+  --beat: 0.29s;
+}
+
+body.is-fit .screen--final {
+  --beat: 0.17s;
+}
+
+@media (max-width: 640px) {
+  .screen--final {
+    --beat: 0.17s;
+  }
+}
+.screen--final.is-revealing:not(.is-shown) .final-head,
+.screen--final.is-revealing:not(.is-shown) .final-top,
+.screen--final.is-revealing:not(.is-shown) .final-block,
+.screen--final.is-revealing:not(.is-shown) .stats,
+.screen--final.is-revealing:not(.is-shown) .final-actions,
+.screen--final.is-revealing:not(.is-shown) .final-stamp {
+  animation-fill-mode: both;
+  animation-timing-function: var(--ease);
+}
+
+.screen--final.is-revealing:not(.is-shown) .final-head {
+  animation-name: rise-in;
+  animation-duration: 0.5s;
+  animation-delay: calc(var(--beat) * 0.4);
+}
+
+.screen--final.is-revealing:not(.is-shown) .final-top {
+  animation-name: rise-in;
+  animation-duration: 0.6s;
+  animation-delay: var(--beat);
+}
+
+.screen--final .final-body {
+  min-width: 0;
+}
+
+.screen--final.is-revealing:not(.is-shown) .final-stamp {
+  animation-name: stamp-hit;
+  animation-duration: 0.45s;
+  animation-delay: calc(var(--beat) * 5);
+  animation-timing-function: var(--ease-back);
+}
+
+.screen--final.is-revealing:not(.is-shown) .final-side .final-block:nth-child(1) {
+  animation-name: rise-in;
+  animation-duration: 0.5s;
+  animation-delay: calc(var(--beat) * 5.8);
+}
+
+.screen--final.is-revealing:not(.is-shown) .final-side .final-block:nth-child(2) {
+  animation-name: rise-in;
+  animation-duration: 0.5s;
+  animation-delay: calc(var(--beat) * 7.5);
+}
+
+.screen--final.is-revealing:not(.is-shown) .stats {
+  animation-name: rise-in;
+  animation-duration: 0.5s;
+  animation-delay: calc(var(--beat) * 8.9);
+}
+
+.screen--final.is-revealing:not(.is-shown) .final-actions {
+  animation-name: rise-in;
+  animation-duration: 0.5s;
+  animation-delay: calc(var(--beat) * 9.9);
+}
+
+/* Полоска «до следующего звания» наливается сразу после счётчика индекса. */
+.screen--final.is-revealing:not(.is-shown) .final-next-fill {
+  animation: next-fill 0.8s var(--ease) both;
+  animation-delay: calc(var(--beat) * 4.6);
+}
+
+@keyframes next-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(var(--next-ratio, 0)); }
+}
+
+/* Шкалы наливаются по очереди, отметки документов появляются одна за другой. */
+.screen--final.is-revealing:not(.is-shown) .meter-fill {
+  animation: meter-fill 0.7s var(--ease) both;
+  animation-delay: calc(var(--beat) * 6.5 + var(--meter-index) * var(--beat) * 0.4);
+}
+
+.screen--final.is-revealing:not(.is-shown) .doc-mark {
+  animation: mark-in 0.35s var(--ease-back) both;
+  animation-delay: calc(var(--beat) * 8 + var(--mark-index) * var(--beat) * 0.17);
+}
+
+@keyframes meter-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(var(--meter-ratio, 0)); }
+}
+
+@keyframes mark-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.85); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes badge-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(55, 217, 154, 0.5); }
+  50% { box-shadow: 0 0 0 7px rgba(55, 217, 154, 0); }
+}
+
+@media (max-width: 640px) {
+  .final-head {
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .meter {
+    grid-template-columns: 1fr auto auto;
+    grid-template-areas:
+      'caption value points'
+      'track track track';
+    gap: 4px 10px;
+  }
+
+  .meter-caption { grid-area: caption; }
+  .meter-value { grid-area: value; }
+  .meter-points { grid-area: points; }
+  .meter-track { grid-area: track; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .final-badge {
+    animation: none;
+  }
+}
+
+/* Компактная сводка: итоговый экран и без того насыщен. */
+.screen--final .stat {
+  padding: 9px 13px;
+  font-size: 0.8rem;
+}
+
+.screen--final .final-actions {
+  margin-top: 2px;
+}

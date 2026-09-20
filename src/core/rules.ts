@@ -77,27 +77,83 @@ export function resolveRound(
   };
 }
 
-/**
- * ИНДЕКС ЧИСТОТЫ, 0–100%.
- * Учитывает три составляющие: доля найденных признаков (55%),
- * доля верных решений (45%) и штраф за ложные срабатывания (по 5% за каждое).
- */
-export function purityIndex(params: {
+/** Вес составляющих индекса чистоты. */
+export const PURITY_WEIGHTS = {
+  /** Доля найденных признаков. */
+  detection: 0.55,
+  /** Доля верных решений. */
+  decisions: 0.45,
+  /** Штраф за каждое ложное срабатывание. */
+  falsePositive: 0.05,
+  /** Предел штрафа. */
+  penaltyLimit: 0.5,
+} as const;
+
+export interface PurityInput {
   found: number;
   totalFlags: number;
   correctDecisions: number;
   roundsPlayed: number;
   falsePositives: number;
-}): number {
+}
+
+export interface PurityBreakdown {
+  /** Доли 0…1 — для шкал. */
+  detectionRatio: number;
+  decisionsRatio: number;
+  penaltyRatio: number;
+  /** Вклад каждой составляющей в проценты индекса. */
+  detectionPoints: number;
+  decisionsPoints: number;
+  penaltyPoints: number;
+  index: number;
+}
+
+/**
+ * Разбор индекса чистоты по составляющим: доля найденных признаков,
+ * доля верных решений и штраф за ложные срабатывания.
+ * Итоговый экран показывает эти же числа, поэтому формула живёт
+ * в одном месте.
+ */
+export function purityBreakdown(params: PurityInput): PurityBreakdown {
   const { found, totalFlags, correctDecisions, roundsPlayed, falsePositives } = params;
-  if (roundsPlayed === 0) return 0;
 
-  const detection = totalFlags > 0 ? found / totalFlags : 1;
-  const decisions = correctDecisions / roundsPlayed;
-  const penalty = Math.min(0.5, falsePositives * 0.05);
-  const raw = 0.55 * detection + 0.45 * decisions - penalty;
+  if (roundsPlayed === 0) {
+    return {
+      detectionRatio: 0,
+      decisionsRatio: 0,
+      penaltyRatio: 0,
+      detectionPoints: 0,
+      decisionsPoints: 0,
+      penaltyPoints: 0,
+      index: 0,
+    };
+  }
 
-  return clamp(Math.round(raw * 100), 0, 100);
+  const detectionRatio = totalFlags > 0 ? found / totalFlags : 1;
+  const decisionsRatio = correctDecisions / roundsPlayed;
+  const penalty = Math.min(
+    PURITY_WEIGHTS.penaltyLimit,
+    falsePositives * PURITY_WEIGHTS.falsePositive,
+  );
+
+  const raw =
+    PURITY_WEIGHTS.detection * detectionRatio + PURITY_WEIGHTS.decisions * decisionsRatio - penalty;
+
+  return {
+    detectionRatio,
+    decisionsRatio,
+    penaltyRatio: penalty / PURITY_WEIGHTS.penaltyLimit,
+    detectionPoints: Math.round(PURITY_WEIGHTS.detection * detectionRatio * 100),
+    decisionsPoints: Math.round(PURITY_WEIGHTS.decisions * decisionsRatio * 100),
+    penaltyPoints: Math.round(penalty * 100),
+    index: clamp(Math.round(raw * 100), 0, 100),
+  };
+}
+
+/** ИНДЕКС ЧИСТОТЫ, 0–100%. */
+export function purityIndex(params: PurityInput): number {
+  return purityBreakdown(params).index;
 }
 
 /** Сводная статистика партии. */
@@ -159,13 +215,41 @@ export function liveAccuracy(state: Pick<GameState, 'results' | 'clicked'>, curr
   return total === 0 ? 100 : Math.round((hits / total) * 100);
 }
 
+export interface Rank {
+  /** Нижняя граница индекса чистоты, с которой звание присваивается. */
+  min: number;
+  title: string;
+  caption: string;
+}
+
+/** Звания от высшего к низшему: порядок важен для rankFor и nextRank. */
+export const RANKS: readonly Rank[] = [
+  { min: 85, title: 'КОМПЛАЕНС-ЭКСПЕРТ', caption: 'Вы видите риск там, где другие видят формальность.' },
+  { min: 65, title: 'ВНИМАТЕЛЬНЫЙ СОТРУДНИК', caption: 'Хороший результат: большинство рисков остановлено вовремя.' },
+  { min: 45, title: 'СТАЖЁР ПРОВЕРКИ', caption: 'Основное замечено, но часть сигналов прошла мимо.' },
+  { min: 25, title: 'ФОРМАЛЬНЫЙ ПОДХОД', caption: 'Документы просмотрены, но не прочитаны.' },
+  { min: 0, title: 'ЗОНА РИСКА', caption: 'Такую проверку легко обойти. Попробуйте ещё раз.' },
+];
+
 /** Итоговое звание по индексу чистоты. */
-export function rankFor(index: number): { title: string; caption: string } {
-  if (index >= 85) return { title: 'КОМПЛАЕНС-ЭКСПЕРТ', caption: 'Вы видите риск там, где другие видят формальность.' };
-  if (index >= 65) return { title: 'ВНИМАТЕЛЬНЫЙ СОТРУДНИК', caption: 'Хороший результат: большинство рисков остановлено вовремя.' };
-  if (index >= 45) return { title: 'СТАЖЁР ПРОВЕРКИ', caption: 'Основное замечено, но часть сигналов прошла мимо.' };
-  if (index >= 25) return { title: 'ФОРМАЛЬНЫЙ ПОДХОД', caption: 'Документы просмотрены, но не прочитаны.' };
-  return { title: 'ЗОНА РИСКА', caption: 'Такую проверку легко обойти. Попробуйте ещё раз.' };
+export function rankFor(index: number): Rank {
+  return RANKS.find((rank) => index >= rank.min) ?? RANKS[RANKS.length - 1];
+}
+
+/**
+ * Следующее звание и путь до него: чем занят прогресс-бар на протоколе.
+ * На высшем звании возвращает null — расти больше некуда.
+ */
+export function nextRank(index: number): { rank: Rank; need: number; progress: number } | null {
+  const higher = [...RANKS].reverse().find((rank) => rank.min > index);
+  if (!higher) return null;
+  const current = rankFor(index);
+  const span = higher.min - current.min;
+  return {
+    rank: higher,
+    need: higher.min - index,
+    progress: span <= 0 ? 0 : clamp((index - current.min) / span, 0, 1),
+  };
 }
 
 export function clamp(value: number, min: number, max: number): number {

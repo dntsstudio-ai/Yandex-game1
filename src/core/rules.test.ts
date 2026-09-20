@@ -5,7 +5,10 @@ import {
   SCORING,
   clickPoints,
   computeTotals,
+  RANKS,
   liveAccuracy,
+  nextRank,
+  purityBreakdown,
   purityIndex,
   rankFor,
   resolveRound,
@@ -313,6 +316,110 @@ describe('контент', () => {
       expect(new Set(used).size).toBe(used.length);
       expect([...ids].sort()).toEqual([...used].sort());
       for (const hotspot of scenario.hotspots) expect(hotspot.note.length).toBeGreaterThan(5);
+    }
+  });
+});
+
+describe('разбор индекса чистоты', () => {
+  const full = {
+    found: 10,
+    totalFlags: 10,
+    correctDecisions: 5,
+    roundsPlayed: 5,
+    falsePositives: 0,
+  };
+
+  it('безупречная проверка даёт 100 и полные доли', () => {
+    const breakdown = purityBreakdown(full);
+    expect(breakdown.index).toBe(100);
+    expect(breakdown.detectionPoints + breakdown.decisionsPoints).toBe(100);
+    expect(breakdown.penaltyPoints).toBe(0);
+    expect(breakdown.detectionRatio).toBe(1);
+    expect(breakdown.decisionsRatio).toBe(1);
+  });
+
+  it('доли складываются в тот же индекс, что и purityIndex', () => {
+    const cases = [
+      full,
+      { found: 3, totalFlags: 10, correctDecisions: 2, roundsPlayed: 5, falsePositives: 4 },
+      { found: 0, totalFlags: 0, correctDecisions: 1, roundsPlayed: 3, falsePositives: 0 },
+      { found: 7, totalFlags: 9, correctDecisions: 9, roundsPlayed: 10, falsePositives: 30 },
+    ];
+    for (const input of cases) {
+      const breakdown = purityBreakdown(input);
+      expect(breakdown.index).toBe(purityIndex(input));
+      const sum =
+        breakdown.detectionPoints + breakdown.decisionsPoints - breakdown.penaltyPoints;
+      expect(Math.abs(breakdown.index - Math.min(100, Math.max(0, sum)))).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('штраф за ложные срабатывания ограничен половиной шкалы', () => {
+    const many = purityBreakdown({ ...full, falsePositives: 999 });
+    expect(many.penaltyPoints).toBe(50);
+    expect(many.penaltyRatio).toBe(1);
+    expect(many.index).toBe(50);
+  });
+
+  it('несыгранная партия даёт нули, а не деление на ноль', () => {
+    const empty = purityBreakdown({
+      found: 0,
+      totalFlags: 0,
+      correctDecisions: 0,
+      roundsPlayed: 0,
+      falsePositives: 0,
+    });
+    expect(empty.index).toBe(0);
+    expect(Number.isNaN(empty.detectionRatio)).toBe(false);
+  });
+
+  it('индекс никогда не выходит за 0..100', () => {
+    for (let found = 0; found <= 10; found += 1) {
+      for (const falsePositives of [0, 5, 40]) {
+        const value = purityIndex({ ...full, found, falsePositives });
+        expect(value).toBeGreaterThanOrEqual(0);
+        expect(value).toBeLessThanOrEqual(100);
+      }
+    }
+  });
+});
+
+describe('звания', () => {
+  it('пороги идут по убыванию и заканчиваются нулём', () => {
+    for (let i = 1; i < RANKS.length; i += 1) {
+      expect(RANKS[i].min).toBeLessThan(RANKS[i - 1].min);
+    }
+    expect(RANKS[RANKS.length - 1].min).toBe(0);
+  });
+
+  it('звание соответствует порогу', () => {
+    for (const rank of RANKS) {
+      expect(rankFor(rank.min).title).toBe(rank.title);
+    }
+    expect(rankFor(0).title).toBe(RANKS[RANKS.length - 1].title);
+    expect(rankFor(100).title).toBe(RANKS[0].title);
+  });
+
+  it('следующее звание — ближайшее сверху, с остатком до него', () => {
+    const ahead = nextRank(41);
+    expect(ahead?.rank.min).toBe(45);
+    expect(ahead?.need).toBe(4);
+    // 41 находится между 25 и 45 — это 80 % пути
+    expect(ahead?.progress).toBeCloseTo(0.8, 5);
+  });
+
+  it('на высшем звании расти некуда', () => {
+    expect(nextRank(85)).toBeNull();
+    expect(nextRank(100)).toBeNull();
+  });
+
+  it('прогресс всегда в пределах 0..1', () => {
+    for (let index = 0; index < 85; index += 1) {
+      const ahead = nextRank(index);
+      expect(ahead).not.toBeNull();
+      expect(ahead!.progress).toBeGreaterThanOrEqual(0);
+      expect(ahead!.progress).toBeLessThanOrEqual(1);
+      expect(ahead!.need).toBeGreaterThan(0);
     }
   });
 });

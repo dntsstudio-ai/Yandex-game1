@@ -11,7 +11,7 @@ import { sfx } from '../core/sound/sfx';
 import type { Decision, GameState } from '../core/types';
 import { h } from './dom';
 import { renderAbout } from './screens/about';
-import { renderFinalScreen } from './screens/final';
+import { renderFinalScreen, type FinalScreen } from './screens/final';
 import { renderGameScreen, type GameScreen } from './screens/game';
 import { renderRoundResult } from './screens/roundResult';
 import { renderSettings } from './screens/settings';
@@ -28,6 +28,7 @@ export class App {
   private renderedKey = '';
   private lastSecond = -1;
   private menuScene: MenuScene | null = null;
+  private finalScreen: FinalScreen | null = null;
   private entering = false;
 
   constructor(host: HTMLElement, engine = new GameEngine()) {
@@ -92,13 +93,19 @@ export class App {
       this.menuScene = null;
     }
 
+    // итоговый экран держит таймеры и анимацию пыли — останавливаем их
+    if (state.phase !== 'final' && this.finalScreen) {
+      this.finalScreen.destroy();
+      this.finalScreen = null;
+    }
+
     switch (state.phase) {
       case 'playing':
         return this.buildGame(state);
       case 'round-result':
         return this.buildRoundResult(state);
       case 'final':
-        return this.buildFinal();
+        return this.buildFinal(state);
       case 'start':
       default: {
         this.gameScreen = null;
@@ -192,21 +199,31 @@ export class App {
     });
   }
 
-  private buildFinal(): HTMLElement {
+  private buildFinal(state: GameState): HTMLElement {
     this.gameScreen = null;
     sfx.play('final');
-    return renderFinalScreen(this.engine.getTotals(), this.engine.getScenarios().length, {
-      onRestart: () => {
-        sfx.play('click');
-        void music.start();
-        this.lastSecond = -1;
-        this.engine.start();
-        this.fadeFromBlack();
+
+    const screen = renderFinalScreen(
+      this.engine.getTotals(),
+      state.results,
+      this.engine.getScenarios(),
+      {
+        onRestart: () => {
+          sfx.play('click');
+          void music.start();
+          this.lastSecond = -1;
+          this.engine.start();
+          this.fadeFromBlack();
+        },
+        onAbout: () => this.openAbout(),
+        onSettings: () => this.openSettings(),
+        onCount: () => sfx.play('count'),
+        onStamp: () => sfx.play('stamp'),
       },
-      onAbout: () => this.openAbout(),
-      onSettings: () => this.openSettings(),
-      onCount: () => sfx.play('count'),
-    });
+    );
+
+    this.finalScreen = screen;
+    return screen.root;
   }
 
   private openAbout(): void {

@@ -381,9 +381,11 @@
   gap: 14px;
   justify-items: center;
   text-align: center;
-  background: linear-gradient(180deg, rgba(30, 36, 48, 0.86), rgba(16, 20, 28, 0.92));
+  /* Без backdrop-filter: внутри карточки живёт холст с пылью, и размытие
+     подложки пересчитывалось бы на каждом кадре — 16 к/с вместо 51.
+     Плотности градиента хватает, чтобы текст читался поверх фотографии. */
+  background: linear-gradient(180deg, rgba(28, 34, 46, 0.94), rgba(14, 18, 26, 0.96));
   border: 1px solid var(--line-strong);
-  backdrop-filter: blur(18px);
   border-radius: var(--radius-l);
   padding: clamp(20px, 4vw, 34px);
   box-shadow: var(--shadow-card);
@@ -406,7 +408,7 @@
 
 .purity {
   position: relative;
-  width: clamp(160px, 42vw, 200px);
+  width: clamp(148px, 16vw, 210px);
   aspect-ratio: 1;
   display: grid;
   place-items: center;
