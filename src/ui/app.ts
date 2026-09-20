@@ -17,7 +17,7 @@ import { renderMistakes } from './screens/mistakes';
 import { renderRoundResult } from './screens/roundResult';
 import { renderSettings } from './screens/settings';
 import { renderStartScreen } from './screens/start';
-import { renderTutorial, renderTutorialOffer, type TutorialScreen } from './screens/tutorial';
+import { renderTutorial, type TutorialScreen } from './screens/tutorial';
 import type { MenuScene } from './menuScene';
 import { setupViewport } from './viewport';
 
@@ -37,7 +37,7 @@ export class App {
    * Обучение живёт между меню и первым документом и движка не касается:
    * пока оно на экране, партия ещё не начата.
    */
-  private interlude: 'offer' | 'tutorial' | null = null;
+  private interlude: 'tutorial' | null = null;
 
   constructor(host: HTMLElement, engine = new GameEngine()) {
     // Сцена фиксированного размера: в альбомном режиме телефона она
@@ -158,14 +158,17 @@ export class App {
 
     void scene.playExit().then(() => {
       this.entering = false;
-      // экран уже затемнён сценой — дальше предложение обучения
-      this.showOffer();
+      // экран уже затемнён сценой — дальше знакомство с инспектором
+      this.showTutorial();
       this.fadeFromBlack();
     });
   }
 
-  /** Предложение пройти обучение перед первой партией. */
-  private showOffer(): void {
+  /**
+   * Знакомство с инспектором: он сам предлагает обучение и сам
+   * отправляет работать, если игрок откажется.
+   */
+  private showTutorial(): void {
     // Сцена меню больше не нужна: она продолжала бы крутить анимации,
     // а её класс menu-exit держал бы экран затемнённым.
     if (this.menuScene) {
@@ -173,22 +176,6 @@ export class App {
       this.menuScene = null;
     }
 
-    this.interlude = 'offer';
-    this.renderInterlude(
-      renderTutorialOffer(
-        () => {
-          sfx.play('click');
-          this.showTutorial();
-        },
-        () => {
-          sfx.play('click');
-          this.startGame();
-        },
-      ),
-    );
-  }
-
-  private showTutorial(): void {
     this.interlude = 'tutorial';
     const screen = renderTutorial({
       onFinish: () => this.startGame(),

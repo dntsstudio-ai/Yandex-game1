@@ -45,7 +45,6 @@ void (async () => {
     ['hintIcon', '--ui-hint-icon', 'has-ui-hint-icon'],
     ['zoomIcon', '--ui-zoom-icon', 'has-ui-zoom-icon'],
     ['caseTab', '--ui-case-tab', 'has-ui-case-tab'],
-    ['lessonDoc', '--ui-lesson-doc', 'has-ui-lesson-doc'],
   ];
 
   const stamps: Array<[keyof typeof MEDIA, string]> = [

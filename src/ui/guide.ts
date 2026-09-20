@@ -1,20 +1,15 @@
 /**
  * Гид игрока — ИНСПЕКТОР №04.
  *
- * Функциональный помощник, а не персонаж новеллы: показывает реплику
- * и указывает, куда смотреть. Поза — это просто картинка из
- * `public/media/guide/<поза>.webp`; файла нет — остаётся нарисованный
- * средствами CSS силуэт, и логика реплик не меняется.
+ * Фигура и реплика разведены: фигура стоит сама по себе, без рамки и
+ * подложки, а говорит она в отдельную панель. Так один и тот же гид
+ * работает и в новелльной сцене обучения, и в любом другом месте.
+ *
+ * Поза — это имя файла в `public/media/guide`. Файла нет — остаётся
+ * нарисованный средствами CSS силуэт, и логика реплик не меняется.
  */
 import { assetUrl } from '../core/assets';
 import { h } from './dom';
-
-export interface GuideOptions {
-  /** Имя на бейдже. */
-  name?: string;
-  /** Поза: обычная или указывающая. */
-  pose?: GuidePose;
-}
 
 /**
  * Позы гида. Имя позы — это и имя файла: добавить новую можно,
@@ -34,66 +29,126 @@ export const GUIDE_POSES = [
 export type GuidePose = (typeof GUIDE_POSES)[number];
 
 export interface Guide {
+  /** Фигура: ставится в сцену отдельно от реплики. */
   root: HTMLElement;
-  /** Показать реплику. Пустая строка прячет облако. */
-  say: (text: string, pose?: GuidePose) => void;
   setPose: (pose: GuidePose) => void;
+  /** Короткий «наезд»: фигура подаётся вперёд. */
+  lean: (on: boolean) => void;
   destroy: () => void;
 }
 
-const NAME = 'ИНСПЕКТОР №04';
+export const GUIDE_NAME = 'ИНСПЕКТОР №04';
 
-export function createGuide(options: GuideOptions = {}): Guide {
-  const root = h('div', 'guide');
-  root.innerHTML = `
-    <div class="guide-figure" data-pose="neutral" aria-hidden="true">
-      <span class="guide-portrait"></span>
-    </div>
-    <div class="guide-speech">
-      <span class="guide-name">${options.name ?? NAME}</span>
-      <p class="guide-text" data-guide="text"></p>
-    </div>
-  `;
+export function createGuide(pose: GuidePose = 'neutral'): Guide {
+  const root = h('div', 'guide-figure');
+  root.setAttribute('aria-hidden', 'true');
+  root.innerHTML = '<span class="guide-portrait"></span>';
 
-  const figure = root.querySelector<HTMLElement>('.guide-figure');
   const portrait = root.querySelector<HTMLElement>('.guide-portrait');
-  const text = root.querySelector<HTMLElement>('[data-guide="text"]');
-  let popTimer = 0;
 
-  const setPose = (pose: GuidePose) => {
-    figure?.setAttribute('data-pose', pose);
-    // Картинка ставится прямо на элемент: без файла свойство просто
-    // не сработает, и останется нарисованный силуэт.
+  const setPose = (next: GuidePose) => {
+    root.setAttribute('data-pose', next);
     if (!portrait) return;
-    const url = assetUrl(`media/guide/${pose}.webp`);
+
+    const url = assetUrl(`media/guide/${next}.webp`);
     portrait.style.backgroundImage = `url("${url}")`;
 
     // Силуэт-заглушка убирается только после того, как картинка
-    // действительно загрузилась: иначе при отсутствии файла рамка
-    // осталась бы пустой.
+    // действительно загрузилась: иначе при отсутствии файла осталось бы
+    // пустое место.
     const probe = new Image();
-    probe.addEventListener('load', () => figure?.setAttribute('data-loaded', ''));
+    probe.addEventListener('load', () => root.setAttribute('data-loaded', ''));
     probe.src = url;
   };
-  setPose(options.pose ?? 'neutral');
+
+  setPose(pose);
 
   return {
     root,
-    say(value, pose) {
-      if (pose) setPose(pose);
-      root.classList.toggle('is-speaking', value.length > 0);
-      if (!text) return;
-      text.textContent = value;
-      // короткая вспышка облака: помогает заметить смену реплики
-      text.classList.remove('pop');
-      void text.offsetWidth;
-      text.classList.add('pop');
-      window.clearTimeout(popTimer);
-      popTimer = window.setTimeout(() => text.classList.remove('pop'), 500);
-    },
     setPose,
+    lean(on) {
+      root.classList.toggle('is-leaning', on);
+    },
     destroy() {
-      window.clearTimeout(popTimer);
+      root.remove();
+    },
+  };
+}
+
+export interface SpeechBar {
+  root: HTMLElement;
+  /**
+   * Показать реплику. Текст печатается посимвольно; повторный вызов
+   * say() или skip() дописывает его целиком.
+   */
+  say: (text: string, onDone?: () => void) => void;
+  /** Дописать текущую реплику целиком. Возвращает true, если было что дописывать. */
+  skip: () => boolean;
+  destroy: () => void;
+}
+
+/** Скорость печати, мс на символ. */
+const TYPE_MS = 22;
+
+/** Длинная полоса реплики — как в визуальной новелле. */
+export function createSpeechBar(name = GUIDE_NAME): SpeechBar {
+  const root = h('div', 'speech');
+  root.innerHTML = `
+    <span class="speech-name">${name}</span>
+    <p class="speech-text" data-speech="text"></p>
+    <span class="speech-next" data-speech="next" hidden>ДАЛЬШЕ</span>
+  `;
+
+  const textEl = root.querySelector<HTMLElement>('[data-speech="text"]');
+  const nextEl = root.querySelector<HTMLElement>('[data-speech="next"]');
+
+  let timer = 0;
+  let full = '';
+  let shown = 0;
+  let done: (() => void) | null = null;
+
+  const reduceMotion =
+    typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const finish = () => {
+    window.clearInterval(timer);
+    timer = 0;
+    shown = full.length;
+    if (textEl) textEl.textContent = full;
+    if (nextEl) nextEl.hidden = false;
+    const callback = done;
+    done = null;
+    callback?.();
+  };
+
+  return {
+    root,
+    say(text, onDone) {
+      window.clearInterval(timer);
+      full = text;
+      shown = 0;
+      done = onDone ?? null;
+      if (nextEl) nextEl.hidden = true;
+      if (textEl) textEl.textContent = '';
+
+      if (reduceMotion || text.length === 0) {
+        finish();
+        return;
+      }
+
+      timer = window.setInterval(() => {
+        shown += 1;
+        if (textEl) textEl.textContent = full.slice(0, shown);
+        if (shown >= full.length) finish();
+      }, TYPE_MS);
+    },
+    skip() {
+      if (timer === 0) return false;
+      finish();
+      return true;
+    },
+    destroy() {
+      window.clearInterval(timer);
       root.remove();
     },
   };

@@ -46,6 +46,10 @@ export function setupViewport(stage: HTMLElement, hintHost: HTMLElement): Viewpo
   };
 
   const toggleHint = (visible: boolean) => {
+    // Подсказка лежит поверх нижнего края сцены, поэтому экраны,
+    // у которых внизу что-то нажимают, поднимают своё содержимое.
+    document.body.classList.toggle('has-rotate-hint', visible);
+
     if (visible && !hint) {
       hint = renderRotateHint(() => {
         portraitAccepted = true;

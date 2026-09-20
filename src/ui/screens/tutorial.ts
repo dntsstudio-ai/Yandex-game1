@@ -1,5 +1,9 @@
 /**
- * Короткое обучение: четыре слайда меньше чем на минуту.
+ * Обучение в духе визуальной новеллы.
+ *
+ * Инспектор стоит слева без рамки и подложки, говорит в длинную полосу
+ * внизу, демонстрация раскрывается над ней. Сначала знакомство, потом
+ * выбор: пройти обучение или сразу за работу.
  *
  * Обучение живёт отдельно от движка: у него свой маленький документ,
  * свои клики и свой таймер. Основной счёт оно не трогает, поэтому
@@ -8,7 +12,7 @@
 import type { Scenario } from '../../core/types';
 import { h } from '../dom';
 import { renderDocument } from '../documentView';
-import { createGuide, type Guide, type GuidePose } from '../guide';
+import { createGuide, createSpeechBar, type Guide, type GuidePose, type SpeechBar } from '../guide';
 import { icon } from '../icons';
 
 export interface TutorialHandlers {
@@ -56,7 +60,7 @@ const LESSON: Scenario = {
       id: 't-flag',
       text: 'поставщика рекомендовал руководитель, конкурс не проводился',
       suspicious: true,
-      note: 'Вот это — красный флаг: решение принято без конкурса, по личной рекомендации.',
+      note: 'Вот он, красный флаг: решение приняли без конкурса, по личной рекомендации.',
     },
     {
       id: 't-normal',
@@ -69,15 +73,25 @@ const LESSON: Scenario = {
   explanation: '',
 };
 
+/** Знакомство до выбора. */
+const INTRO: Array<{ text: string; pose: GuidePose }> = [
+  { text: 'Ах... Кого там ещё к нам занесло?', pose: 'tired' },
+  { text: 'А, это ты? Новый инспектор? Отлично.', pose: 'ok' },
+  { text: 'Ты тут новенький? Показать, как всё устроено?', pose: 'think' },
+];
+
+/** Что говорит инспектор, если обучение пропустили. */
+const ORDER: Array<{ text: string; pose: GuidePose }> = [
+  { text: 'Не новенький, значит. Ну смотри.', pose: 'neutral' },
+  { text: 'Тогда за работу! Чтоб мир стал чище!', pose: 'point' },
+];
+
 interface Slide {
   title: string;
-  text: string;
-  /** Реплика гида. */
-  guide: string;
-  /** Поза гида на этом слайде. */
-  pose: GuidePose;
-  /** Что показывать под текстом. */
-  stage: 'doc' | 'decision' | 'timer' | 'done';
+  /** Реплики инспектора: показываются по очереди. */
+  lines: Array<{ text: string; pose: GuidePose }>;
+  /** Что показывать над полосой реплики. */
+  stage: 'doc' | 'decision' | 'timer' | 'none';
   /** Какой фрагмент ждём от игрока, чтобы пойти дальше. */
   expect?: 't-flag' | 't-normal';
 }
@@ -85,107 +99,203 @@ interface Slide {
 const SLIDES: Slide[] = [
   {
     title: 'НАЙДИ ПРИЗНАК РИСКА',
-    text: 'Внимательно изучай документ. Подозрительные фрагменты можно отметить нажатием.',
-    guide: 'Красный флаг — это деталь, из-за которой сделку стоит остановить. Я подсветил её для примера. Нажмите на неё.',
-    pose: 'point',
+    lines: [
+      { text: 'Смотри внимательно. Подозрительный кусок текста отмечают нажатием.', pose: 'work' },
+      { text: 'Вот этот я подсветил для примера. Жми на него.', pose: 'point' },
+    ],
     stage: 'doc',
     expect: 't-flag',
   },
   {
     title: 'БУДЬ ВНИМАТЕЛЕН',
-    text: 'Обычные данные тоже находятся в документе. Ошибочная отметка отнимает очки.',
-    guide: 'Теперь нажмите на обычную строку — посмотрим, что будет.',
-    pose: 'think',
+    lines: [
+      { text: 'Только не жми всё подряд. В документе полно обычных данных.', pose: 'think' },
+      { text: 'Попробуй нажать на обычную строку — посмотрим, что выйдет.', pose: 'neutral' },
+    ],
     stage: 'doc',
     expect: 't-normal',
   },
   {
     title: 'ПРИНЯТЬ РЕШЕНИЕ',
-    text: 'После проверки реши, нужно ли остановить документ.',
-    guide: 'Нашли нарушение — останавливайте. Документ чист — пропускайте. Здесь выбор на счёт не влияет.',
-    pose: 'work',
+    lines: [
+      { text: 'Проверил документ — решай. Нашёл нарушение, останавливай.', pose: 'work' },
+      { text: 'Документ чист — пропускай. Здесь на счёт это не влияет, пробуй.', pose: 'neutral' },
+    ],
     stage: 'decision',
   },
   {
     title: 'СЛЕДИ ЗА ВРЕМЕНЕМ',
-    text: 'На проверку документа даётся ограниченное время.',
-    guide: 'Последние секунды отсчитываются вслух. Не успели — документ уходит без вашего решения.',
-    pose: 'time',
+    lines: [
+      { text: 'И главное: время. На каждый документ его в обрез.', pose: 'time' },
+      { text: 'Последние секунды отсчитываются вслух. Смотри.', pose: 'time' },
+    ],
     stage: 'timer',
   },
   {
     title: 'ГОТОВО',
-    text: 'Теперь ты знаешь всё необходимое.',
-    guide: 'Дело за вами, инспектор.',
-    pose: 'ok',
-    stage: 'done',
+    lines: [
+      { text: 'Вот и всё, что нужно знать. Остальное придёт с опытом.', pose: 'ok' },
+      { text: 'Дело за тобой, инспектор. Чтоб мир стал чище!', pose: 'point' },
+    ],
+    stage: 'none',
   },
 ];
 
 export function renderTutorial(handlers: TutorialHandlers): TutorialScreen {
-  const root = h('section', 'screen screen--tutorial');
-  let index = 0;
-  let guide: Guide | null = null;
-  let timerHandle = 0;
-  let mistakeShown = false;
+  const root = h('section', 'screen screen--novel');
 
   root.innerHTML = `
-    <div class="panel tutorial-inner">
-      <span class="tick tick--tl"></span><span class="tick tick--tr"></span>
-      <span class="tick tick--bl"></span><span class="tick tick--br"></span>
-
-      <header class="tutorial-head">
-        <span class="tutorial-label">ОБУЧЕНИЕ</span>
-        <span class="tutorial-step" data-tutorial="step"></span>
-      </header>
-
-      <h2 class="tutorial-title" data-tutorial="title"></h2>
-      <p class="tutorial-text" data-tutorial="text"></p>
-
-      <div class="tutorial-guide" data-tutorial="guide"></div>
-
-      <div class="tutorial-stage" data-tutorial="stage"></div>
-
-      <div class="tutorial-actions">
-        <button type="button" class="btn btn--ghost" data-action="skip">ПРОПУСТИТЬ ОБУЧЕНИЕ</button>
-        <button type="button" class="btn btn--primary" data-action="next" hidden>ДАЛЬШЕ</button>
+    <div class="novel">
+      <div class="novel-top">
+        <span class="novel-label" data-novel="label">ЗНАКОМСТВО</span>
+        <span class="novel-step" data-novel="step"></span>
       </div>
+
+      <div class="novel-stage" data-novel="stage"></div>
+
+      <div class="novel-bottom">
+        <div class="novel-guide" data-novel="guide"></div>
+        <div class="novel-speech" data-novel="speech"></div>
+      </div>
+
+      <div class="novel-choice" data-novel="choice" hidden>
+        <p class="novel-choice-title">Что скажешь?</p>
+        <button type="button" class="btn btn--primary" data-action="take">ПРОЙТИ ОБУЧЕНИЕ</button>
+        <button type="button" class="btn btn--ghost" data-action="skip">ПРОПУСТИТЬ</button>
+      </div>
+
+      <button type="button" class="btn btn--ghost novel-exit" data-action="exit">
+        ПРОПУСТИТЬ ОБУЧЕНИЕ
+      </button>
     </div>
   `;
 
-  const titleEl = root.querySelector<HTMLElement>('[data-tutorial="title"]');
-  const textEl = root.querySelector<HTMLElement>('[data-tutorial="text"]');
-  const stepEl = root.querySelector<HTMLElement>('[data-tutorial="step"]');
-  const stageEl = root.querySelector<HTMLElement>('[data-tutorial="stage"]');
-  const guideSlot = root.querySelector<HTMLElement>('[data-tutorial="guide"]');
-  const nextButton = root.querySelector<HTMLButtonElement>('[data-action="next"]');
+  const stageEl = root.querySelector<HTMLElement>('[data-novel="stage"]');
+  const labelEl = root.querySelector<HTMLElement>('[data-novel="label"]');
+  const stepEl = root.querySelector<HTMLElement>('[data-novel="step"]');
+  const choiceEl = root.querySelector<HTMLElement>('[data-novel="choice"]');
+  const exitButton = root.querySelector<HTMLElement>('[data-action="exit"]');
 
-  guide = createGuide();
-  guideSlot?.appendChild(guide.root);
+  const guide: Guide = createGuide('tired');
+  root.querySelector('[data-novel="guide"]')?.appendChild(guide.root);
 
-  const finish = () => {
-    handlers.onClick();
-    handlers.onFinish();
+  const speech: SpeechBar = createSpeechBar();
+  root.querySelector('[data-novel="speech"]')?.appendChild(speech.root);
+
+  let timerHandle = 0;
+  let mistakeShown = false;
+  let slideIndex = 0;
+  /** Что делает нажатие по полосе реплики прямо сейчас. */
+  let advance: (() => void) | null = null;
+  let destroyed = false;
+
+  // ---------- общая механика реплик ----------
+
+  /** Проигрывает цепочку реплик, затем вызывает then(). */
+  function playLines(lines: Array<{ text: string; pose: GuidePose }>, then: () => void): void {
+    let index = 0;
+
+    const step = () => {
+      if (destroyed) return;
+      if (index >= lines.length) {
+        advance = null;
+        then();
+        return;
+      }
+      const line = lines[index];
+      index += 1;
+      guide.setPose(line.pose);
+      speech.say(line.text);
+      advance = step;
+    };
+
+    step();
+  }
+
+  /** Нажатие по сцене: сначала дописывает текст, потом ведёт дальше. */
+  const onAdvance = (event: Event) => {
+    const target = event.target as HTMLElement;
+    // кнопки и документ обрабатывают нажатие сами
+    if (target.closest('button') || target.closest('.novel-stage')) return;
+    if (speech.skip()) return;
+    advance?.();
   };
 
-  root.querySelector('[data-action="skip"]')?.addEventListener('click', finish);
+  root.addEventListener('click', onAdvance);
 
-  nextButton?.addEventListener('click', () => {
-    handlers.onClick();
-    index += 1;
-    if (index >= SLIDES.length) {
+  const onKey = (event: KeyboardEvent) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    if (document.activeElement instanceof HTMLButtonElement) return;
+    event.preventDefault();
+    if (speech.skip()) return;
+    advance?.();
+  };
+  window.addEventListener('keydown', onKey);
+
+  // ---------- сцены ----------
+
+  function setLabel(label: string, step = ''): void {
+    if (labelEl) labelEl.textContent = label;
+    if (stepEl) stepEl.textContent = step;
+  }
+
+  function clearStage(): void {
+    window.clearInterval(timerHandle);
+    stageEl?.replaceChildren();
+  }
+
+  /** Знакомство, затем выбор. */
+  function playIntro(): void {
+    setLabel('ЗНАКОМСТВО');
+    exitButton?.setAttribute('hidden', '');
+    playLines(INTRO, showChoice);
+  }
+
+  function showChoice(): void {
+    choiceEl?.removeAttribute('hidden');
+    guide.setPose('neutral');
+  }
+
+  /** Отказ: инспектор подаётся вперёд и отправляет работать. */
+  function playOrder(): void {
+    choiceEl?.setAttribute('hidden', '');
+    setLabel('ЗА РАБОТУ');
+    guide.lean(true);
+    playLines(ORDER, () => {
+      guide.lean(false);
       handlers.onFinish();
-      return;
-    }
+    });
+  }
+
+  function startLessons(): void {
+    choiceEl?.setAttribute('hidden', '');
+    exitButton?.removeAttribute('hidden');
+    slideIndex = 0;
     renderSlide();
+  }
+
+  root.querySelector('[data-action="take"]')?.addEventListener('click', () => {
+    handlers.onClick();
+    startLessons();
   });
+
+  root.querySelector('[data-action="skip"]')?.addEventListener('click', () => {
+    handlers.onClick();
+    playOrder();
+  });
+
+  exitButton?.addEventListener('click', () => {
+    handlers.onClick();
+    handlers.onFinish();
+  });
+
+  // ---------- содержимое слайдов ----------
 
   /** Учебный документ с ожиданием нужного клика. */
   function buildDoc(expect: Slide['expect']): HTMLElement {
     const doc = renderDocument(LESSON);
     doc.classList.add('doc--lesson');
 
-    // Подсветка примера — только на первом слайде.
     if (expect === 't-flag') {
       doc.querySelector('[data-hotspot="t-flag"]')?.classList.add('is-hinted');
     }
@@ -204,12 +314,13 @@ export function renderTutorial(handlers: TutorialHandlers): TutorialScreen {
       if (hotspot.suspicious) handlers.onHit();
       else handlers.onMiss();
 
-      guide?.say(hotspot.note, hotspot.suspicious ? 'ok' : 'warn');
+      guide.setPose(hotspot.suspicious ? 'ok' : 'warn');
+      speech.say(hotspot.note);
 
       // Ошибочный клик отмечается явно — так же, как в игре.
       if (!hotspot.suspicious && !mistakeShown) {
         mistakeShown = true;
-        const mark = h('span', 'tutorial-mistake', 'ОШИБОЧНЫЙ КЛИК');
+        const mark = h('span', 'novel-mistake', 'ОШИБОЧНЫЙ КЛИК');
         stageEl?.appendChild(mark);
         window.setTimeout(() => mark.remove(), 2200);
       }
@@ -222,19 +333,16 @@ export function renderTutorial(handlers: TutorialHandlers): TutorialScreen {
 
   /** Демонстрация таймера: шкала добегает до последних секунд. */
   function buildTimer(): HTMLElement {
-    const box = h('div', 'tutorial-timer');
+    const box = h('div', 'novel-timer');
     box.innerHTML = `
-      <div class="tutorial-clock">
-        ${icon('time')}<b data-tutorial="clock">0:05</b>
-      </div>
-      <div class="timebar"><span class="timebar-fill" data-tutorial="bar"></span></div>
+      <div class="novel-clock">${icon('time')}<b data-novel="clock">0:05</b></div>
+      <div class="timebar"><span class="timebar-fill" data-novel="bar"></span></div>
     `;
 
-    const clock = box.querySelector<HTMLElement>('[data-tutorial="clock"]');
-    const bar = box.querySelector<HTMLElement>('[data-tutorial="bar"]');
+    const clock = box.querySelector<HTMLElement>('[data-novel="clock"]');
+    const bar = box.querySelector<HTMLElement>('[data-novel="bar"]');
     let left = 5;
 
-    // Обычный setInterval, а не кадры: цифра меняется раз в секунду.
     const step = () => {
       left -= 1;
       if (clock) clock.textContent = `0:0${Math.max(0, left)}`;
@@ -243,7 +351,8 @@ export function renderTutorial(handlers: TutorialHandlers): TutorialScreen {
       bar?.classList.toggle('is-low', left <= 3);
       if (left <= 0) {
         window.clearInterval(timerHandle);
-        guide?.say('Время вышло — документ ушёл без решения. Лучше не доводить.', 'warn');
+        guide.setPose('warn');
+        speech.say('Вот так документ и уходит без твоего решения. Лучше не доводить.');
         allowNext();
       }
     };
@@ -253,97 +362,68 @@ export function renderTutorial(handlers: TutorialHandlers): TutorialScreen {
     return box;
   }
 
+  function buildDecision(): HTMLElement {
+    const box = h('div', 'novel-decision');
+    box.innerHTML = `
+      <button type="button" class="btn btn--pass">ПРОПУСТИТЬ</button>
+      <button type="button" class="btn btn--stop">ОСТАНОВИТЬ</button>
+    `;
+    box.querySelectorAll('button').forEach((button) => {
+      button.addEventListener('click', () => {
+        handlers.onClick();
+        box.querySelectorAll('button').forEach((other) => other.classList.remove('is-chosen'));
+        button.classList.add('is-chosen');
+        guide.setPose('ok');
+        speech.say(
+          button.classList.contains('btn--stop')
+            ? 'Верно. В этом документе нарушение, его нужно остановить.'
+            : 'Здесь-то нарушение есть, так что верно «ОСТАНОВИТЬ». Но выбор всегда твой.',
+        );
+        allowNext();
+      });
+    });
+    return box;
+  }
+
+  /** Разрешить переход к следующему слайду. */
   function allowNext(): void {
-    if (nextButton) {
-      nextButton.hidden = false;
-      nextButton.textContent = index === SLIDES.length - 1 ? 'НАЧАТЬ ПРОВЕРКУ' : 'ДАЛЬШЕ';
-    }
+    advance = () => {
+      slideIndex += 1;
+      if (slideIndex >= SLIDES.length) {
+        handlers.onFinish();
+        return;
+      }
+      renderSlide();
+    };
   }
 
   function renderSlide(): void {
-    const slide = SLIDES[index];
-    window.clearInterval(timerHandle);
+    const slide = SLIDES[slideIndex];
+    clearStage();
+    setLabel(slide.title, `${slideIndex + 1} / ${SLIDES.length}`);
 
-    if (titleEl) titleEl.textContent = slide.title;
-    if (textEl) textEl.textContent = slide.text;
-    if (stepEl) stepEl.textContent = `${index + 1} / ${SLIDES.length}`;
-    guide?.say(slide.guide, slide.pose);
+    if (slide.stage === 'doc' && stageEl) stageEl.appendChild(buildDoc(slide.expect));
+    if (slide.stage === 'decision' && stageEl) stageEl.appendChild(buildDecision());
+    if (slide.stage === 'timer' && stageEl) stageEl.appendChild(buildTimer());
 
-    if (nextButton) {
-      // На слайдах с действием кнопка появляется после него.
-      nextButton.hidden = slide.stage === 'doc' || slide.stage === 'timer';
-      nextButton.textContent = index === SLIDES.length - 1 ? 'НАЧАТЬ ПРОВЕРКУ' : 'ДАЛЬШЕ';
-    }
-
-    if (!stageEl) return;
-    stageEl.replaceChildren();
-
-    if (slide.stage === 'doc') {
-      stageEl.appendChild(buildDoc(slide.expect));
-      return;
-    }
-
-    if (slide.stage === 'decision') {
-      const box = h('div', 'tutorial-decision');
-      box.innerHTML = `
-        <button type="button" class="btn btn--pass">ПРОПУСТИТЬ</button>
-        <button type="button" class="btn btn--stop">ОСТАНОВИТЬ</button>
-      `;
-      box.querySelectorAll('button').forEach((button) => {
-        button.addEventListener('click', () => {
-          handlers.onClick();
-          box.querySelectorAll('button').forEach((other) => other.classList.remove('is-chosen'));
-          button.classList.add('is-chosen');
-          guide?.say(
-            button.classList.contains('btn--stop')
-              ? 'Так и есть: в этом документе нарушение, его нужно остановить.'
-              : 'В этом документе нарушение есть, так что здесь верно «ОСТАНОВИТЬ». Но выбор за вами.',
-            'ok',
-          );
-        });
-      });
-      stageEl.appendChild(box);
-      return;
-    }
-
-    if (slide.stage === 'timer') {
-      stageEl.appendChild(buildTimer());
-    }
+    // На слайдах с действием переход открывается только после него.
+    playLines(slide.lines, () => {
+      if (slide.stage === 'none') allowNext();
+      else advance = null;
+    });
   }
 
-  renderSlide();
+  playIntro();
 
   return {
     root,
     destroy() {
+      destroyed = true;
       window.clearInterval(timerHandle);
-      guide?.destroy();
-      guide = null;
+      root.removeEventListener('click', onAdvance);
+      window.removeEventListener('keydown', onKey);
+      speech.destroy();
+      guide.destroy();
     },
   };
-}
-
-/** Предложение пройти обучение перед первой партией. */
-export function renderTutorialOffer(onTake: () => void, onSkip: () => void): HTMLElement {
-  const root = h('section', 'screen screen--offer');
-  root.innerHTML = `
-    <div class="panel offer-inner">
-      <span class="tick tick--tl"></span><span class="tick tick--tr"></span>
-      <span class="tick tick--bl"></span><span class="tick tick--br"></span>
-
-      <h2 class="offer-title">ПРОЙТИ ОБУЧЕНИЕ?</h2>
-      <p class="offer-text">
-        Перед началом проверки можно пройти короткое обучение.
-        Оно займёт меньше минуты.
-      </p>
-      <div class="offer-actions">
-        <button type="button" class="btn btn--primary" data-action="take">ПРОЙТИ ОБУЧЕНИЕ</button>
-        <button type="button" class="btn btn--ghost" data-action="skip">ПРОПУСТИТЬ</button>
-      </div>
-    </div>
-  `;
-
-  root.querySelector('[data-action="take"]')?.addEventListener('click', onTake);
-  root.querySelector('[data-action="skip"]')?.addEventListener('click', onSkip);
-  return root;
 }

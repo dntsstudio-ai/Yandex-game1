@@ -33,7 +33,6 @@ export const MEDIA = {
   hintIcon: 'media/ui/hint.webp',
   zoomIcon: 'media/ui/zoom.webp',
   caseTab: 'media/ui/case-tab.webp',
-  lessonDoc: 'media/ui/lesson-doc.webp',
 
   /** Спрайт иконок HUD, настроек и сводки. */
   icons: 'media/ui/icons.svg',
