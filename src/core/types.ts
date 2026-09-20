@@ -80,6 +80,8 @@ export interface RoundResult {
   decisionCorrect: boolean;
   /** Очки, начисленные за раунд (с учётом штрафов). */
   points: number;
+  /** Сколько подсказок взято на этом документе. */
+  hints: number;
 }
 
 /** Агрегированная статистика партии. */
@@ -96,6 +98,10 @@ export interface Totals {
   elapsedMs: number;
   purityIndex: number;
   accuracy: number;
+  /** Самая длинная серия верных отметок подряд. */
+  bestStreak: number;
+  /** Сколько раз игрок брал подсказку. */
+  hintsUsed: number;
 }
 
 /** Экран, который показывает UI. */
@@ -115,6 +121,14 @@ export interface GameState {
   elapsedMs: number;
   /** Кликнутые в текущем раунде элементы. */
   clicked: string[];
+  /** Текущая серия верных отметок подряд; сбрасывается ошибкой. */
+  streak: number;
+  /** Лучшая серия за партию. */
+  bestStreak: number;
+  /** Подсказки, взятые за партию. */
+  hintsUsed: number;
+  /** Признак, на который указала подсказка в текущем раунде. */
+  hintedId: string | null;
   /** Результаты завершённых раундов. */
   results: RoundResult[];
   /** Результат последнего раунда — для экрана разбора. */

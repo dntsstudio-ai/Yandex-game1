@@ -16,7 +16,31 @@ export const SCORING = {
   decisionPenalty: -200,
   /** Бонус за раунд, где найдены все признаки и решение верное. */
   perfectBonus: 100,
+  /** Цена подсказки. Выбрана одна на всю игру — очки, а не секунды:
+      таймер документа и без того жёсткий, а на коротком документе
+      пять секунд отнимали бы вшестеро больше, чем на длинном. */
+  hintCost: -50,
 } as const;
+
+/**
+ * Серия верных отметок подряд. Бонус даётся один раз при достижении
+ * порога, а не на каждой следующей отметке: это поощрение за внимательность,
+ * а не прогрессия.
+ */
+export const STREAK = {
+  /** С какой серии показывать индикатор. */
+  showFrom: 2,
+  /** Пороги и бонусы к ним. */
+  bonuses: [
+    { at: 3, points: 150 },
+    { at: 5, points: 400 },
+  ],
+} as const;
+
+/** Бонус за достижение порога серии; 0 — порог не достигнут. */
+export function streakBonus(streak: number): number {
+  return STREAK.bonuses.find((step) => step.at === streak)?.points ?? 0;
+}
 
 /** Время на один документ по умолчанию, мс. Сбрасывается в начале каждого раунда. */
 export const ROUND_DURATION_MS = 35_000;
@@ -46,6 +70,7 @@ export function resolveRound(
   scenario: Scenario,
   clicked: readonly string[],
   decision: Decision | null,
+  hints = 0,
 ): RoundResult {
   const unique = Array.from(new Set(clicked));
   const flags = suspiciousIds(scenario);
@@ -74,6 +99,7 @@ export function resolveRound(
     decision,
     decisionCorrect,
     points,
+    hints,
   };
 }
 
@@ -158,7 +184,7 @@ export function purityIndex(params: PurityInput): number {
 
 /** Сводная статистика партии. */
 export function computeTotals(
-  state: Pick<GameState, 'score' | 'results'>,
+  state: Pick<GameState, 'score' | 'results'> & Partial<Pick<GameState, 'bestStreak'>>,
   scenarios: readonly Scenario[],
   elapsedMs: number,
 ): Totals {
@@ -195,6 +221,8 @@ export function computeTotals(
       falsePositives,
     }),
     accuracy: totalClicks === 0 ? 0 : Math.round((found / totalClicks) * 100),
+    bestStreak: state.bestStreak ?? 0,
+    hintsUsed: sum(results, (r) => r.hints),
   };
 }
 

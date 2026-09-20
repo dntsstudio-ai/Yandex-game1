@@ -14,6 +14,8 @@ import {
   computeTotals,
   resolveRound,
   roundDuration,
+  streakBonus,
+  suspiciousIds,
 } from './rules';
 import type { Decision, GameState, Scenario, Totals } from './types';
 
@@ -25,6 +27,18 @@ export interface ClickOutcome {
   suspicious: boolean;
   points: number;
   note: string;
+  /** Серия после этого клика. */
+  streak: number;
+  /** Бонус, если клик достроил серию до порога; иначе 0. */
+  streakBonus: number;
+}
+
+/** Результат запроса подсказки. */
+export interface HintOutcome {
+  /** Признак, в сторону которого указывает подсказка; null — подсказка недоступна. */
+  hotspotId: string | null;
+  /** Списанные очки. */
+  cost: number;
 }
 
 export class GameEngine {
@@ -85,7 +99,14 @@ export class GameEngine {
   /** Клик по интерактивному элементу документа. */
   clickHotspot(id: string): ClickOutcome {
     const scenario = this.getScenario();
-    const idle: ClickOutcome = { accepted: false, suspicious: false, points: 0, note: '' };
+    const idle: ClickOutcome = {
+      accepted: false,
+      suspicious: false,
+      points: 0,
+      note: '',
+      streak: this.state.streak,
+      streakBonus: 0,
+    };
     if (!scenario || this.state.phase !== 'playing') return idle;
     if (this.state.clicked.includes(id)) return idle;
 
@@ -93,14 +114,59 @@ export class GameEngine {
     if (!hotspot) return idle;
 
     const points = clickPoints(scenario, id);
+    // Серия растёт только на настоящих признаках и рвётся любой ошибкой.
+    const streak = hotspot.suspicious ? this.state.streak + 1 : 0;
+    const bonus = streakBonus(streak);
+
     this.state = {
       ...this.state,
       clicked: [...this.state.clicked, id],
-      score: this.state.score + points,
+      score: this.state.score + points + bonus,
+      streak,
+      bestStreak: Math.max(this.state.bestStreak, streak),
     };
     this.emit();
 
-    return { accepted: true, suspicious: hotspot.suspicious, points, note: hotspot.note };
+    return {
+      accepted: true,
+      suspicious: hotspot.suspicious,
+      points,
+      note: hotspot.note,
+      streak,
+      streakBonus: bonus,
+    };
+  }
+
+  /**
+   * Подсказка: указывает на ещё не найденный признак риска.
+   * Одна на документ — иначе ей можно было бы вскрыть весь документ.
+   */
+  useHint(): HintOutcome {
+    const scenario = this.getScenario();
+    const none: HintOutcome = { hotspotId: null, cost: 0 };
+    if (!scenario || this.state.phase !== 'playing') return none;
+    if (this.state.hintedId !== null) return none;
+
+    const target = suspiciousIds(scenario).find((id) => !this.state.clicked.includes(id));
+    if (!target) return none;
+
+    this.state = {
+      ...this.state,
+      score: this.state.score + SCORING.hintCost,
+      hintsUsed: this.state.hintsUsed + 1,
+      hintedId: target,
+    };
+    this.emit();
+
+    return { hotspotId: target, cost: SCORING.hintCost };
+  }
+
+  /** Доступна ли подсказка на текущем документе. */
+  canHint(): boolean {
+    const scenario = this.getScenario();
+    if (!scenario || this.state.phase !== 'playing') return false;
+    if (this.state.hintedId !== null) return false;
+    return suspiciousIds(scenario).some((id) => !this.state.clicked.includes(id));
   }
 
   /** Решение по документу: «пропустить» или «остановить». */
@@ -126,6 +192,7 @@ export class GameEngine {
       phase: 'playing',
       index: nextIndex,
       clicked: [],
+      hintedId: null,
       lastResult: null,
       // таймер сбрасывается на каждом документе
       timeLeftMs: duration,
@@ -140,7 +207,12 @@ export class GameEngine {
     const scenario = this.getScenario();
     if (!scenario || this.state.phase !== 'playing') return;
 
-    const result = resolveRound(scenario, this.state.clicked, decision);
+    const result = resolveRound(
+      scenario,
+      this.state.clicked,
+      decision,
+      this.state.hintedId === null ? 0 : 1,
+    );
     // Очки за клики уже начислены в момент нажатия: начисляем только остаток
     // (бонус или штраф за решение и бонус за безупречный раунд).
     const alreadyScored =
@@ -154,6 +226,8 @@ export class GameEngine {
       timeLeftMs: decision === null ? 0 : this.state.timeLeftMs,
       results: [...this.state.results, result],
       lastResult: result,
+      // Неверное решение рвёт серию так же, как ошибочная отметка.
+      streak: result.decisionCorrect ? this.state.streak : 0,
     };
     this.emit();
   }
@@ -204,6 +278,10 @@ export function createInitialState(): GameState {
     roundDurationMs: ROUND_DURATION_MS,
     elapsedMs: 0,
     clicked: [],
+    streak: 0,
+    bestStreak: 0,
+    hintsUsed: 0,
+    hintedId: null,
     results: [],
     lastResult: null,
     finishReason: null,

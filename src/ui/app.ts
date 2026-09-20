@@ -99,6 +99,12 @@ export class App {
       this.finalScreen = null;
     }
 
+    // игровой экран держит слушатель Esc для увеличения документа
+    if (state.phase !== 'playing' && this.gameScreen) {
+      this.gameScreen.destroy();
+      this.gameScreen = null;
+    }
+
     switch (state.phase) {
       case 'playing':
         return this.buildGame(state);
@@ -167,7 +173,19 @@ export class App {
         this.showFloat(element, outcome.points);
         sfx.play(outcome.suspicious ? 'hit' : 'miss');
         if (!outcome.suspicious) this.shake(element);
+
+        screen.showStreak(outcome.streak, outcome.streakBonus);
+        if (outcome.streakBonus > 0) {
+          this.showFloat(element, outcome.streakBonus, `СЕРИЯ ×${outcome.streak}`);
+          sfx.play('good');
+        }
       },
+      onHint: () => {
+        const hint = this.engine.useHint();
+        if (hint.hotspotId) sfx.play('click');
+        return hint.hotspotId;
+      },
+      onZoom: () => sfx.play('paper'),
       onDecision: (decision: Decision) => {
         const correct = scenario.correctDecision === decision;
         sfx.play('stamp');
@@ -246,15 +264,16 @@ export class App {
     this.root.appendChild(overlay);
   }
 
-  /** Всплывающие очки рядом с местом клика. */
-  private showFloat(element: HTMLElement, points: number): void {
+  /** Всплывающие очки рядом с местом клика; label заменяет число. */
+  private showFloat(element: HTMLElement, points: number, label?: string): void {
     const rect = element.getBoundingClientRect();
     const layer = this.floatLayer.getBoundingClientRect();
     // сцена может быть уменьшена — переводим экранные координаты в её систему
     const scale = layer.width / Math.max(1, this.floatLayer.offsetWidth);
 
     const node = h('span', `float ${points >= 0 ? 'float--plus' : 'float--minus'}`);
-    node.textContent = `${points > 0 ? '+' : ''}${points}`;
+    node.textContent = label ?? `${points > 0 ? '+' : ''}${points}`;
+    if (label) node.classList.add('float--streak');
     node.style.left = `${(rect.left + rect.width / 2 - layer.left) / scale}px`;
     node.style.top = `${(rect.top - layer.top) / scale}px`;
     this.floatLayer.appendChild(node);

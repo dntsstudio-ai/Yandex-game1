@@ -1,0 +1,174 @@
+/*
+ * Игровой экран: папка дела, индикатор серии, инструменты
+ * (увеличение и подсказка) и подсветка подсказки.
+ *
+ * Анимируются только transform и opacity: карточка документа большая,
+ * и любая перерисовка её содержимого стоит кадров.
+ */
+
+/* ---------- Папка дела ---------- */
+.case {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 0 2px 6px;
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--line);
+}
+
+.case-label {
+  font-weight: 700;
+}
+
+.case-state {
+  font-variant-numeric: tabular-nums;
+  transition: color 0.25s var(--ease);
+}
+
+.case-state.is-flagged {
+  color: var(--red);
+}
+
+/* ---------- Серия ---------- */
+.streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 77, 85, 0.4);
+  background: rgba(255, 77, 85, 0.1);
+  color: var(--red);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+}
+
+.streak[hidden] {
+  display: none;
+}
+
+body.has-ui-icons .streak .icon {
+  --icon-size: 12px;
+}
+
+/* Порог серии: короткая вспышка, без бесконечной анимации. */
+.streak.is-bonus {
+  animation: streak-pop 0.6s var(--ease-back);
+}
+
+@keyframes streak-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+.float--streak {
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  color: var(--red);
+}
+
+/* ---------- Инструменты ---------- */
+.tools {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn--tool {
+  padding: 9px 14px;
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line-strong);
+  color: var(--text-soft);
+}
+
+.btn--tool:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.btn--tool i {
+  font-style: normal;
+  margin-left: 6px;
+  color: var(--red);
+  font-variant-numeric: tabular-nums;
+}
+
+.btn--tool:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ---------- Увеличение документа ---------- */
+.zoom-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: rgba(6, 8, 12, 0.72);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s var(--ease);
+}
+
+.screen--game.is-zoomed .zoom-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.screen--game .doc-slot {
+  transition: transform 0.32s var(--ease);
+  transform-origin: top center;
+}
+
+/* Масштабируется вся карточка целиком, поэтому кликабельные области
+   растут вместе с текстом и попадать по ним не труднее, а легче. */
+.screen--game.is-zoomed .doc-slot {
+  position: relative;
+  z-index: 4;
+  transform: scale(1.22);
+}
+
+/* Таймер и кнопки решений остаются над затемнением: иначе в увеличенном
+   виде игрок не видел бы, сколько времени осталось, и не мог бы решить,
+   не уменьшив документ обратно. */
+.screen--game.is-zoomed .hud,
+.screen--game.is-zoomed .dock {
+  position: relative;
+  z-index: 5;
+}
+
+@media (max-width: 640px) {
+  .screen--game.is-zoomed .doc-slot {
+    transform: scale(1.12);
+  }
+}
+
+/* ---------- Подсветка подсказки ---------- */
+.is-hinted {
+  position: relative;
+  border-radius: var(--radius-s);
+  box-shadow: 0 0 0 2px rgba(232, 184, 106, 0.55);
+  background: rgba(232, 184, 106, 0.12);
+  animation: hint-glow 1.6s var(--ease) 3;
+}
+
+@keyframes hint-glow {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(232, 184, 106, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(232, 184, 106, 0.16); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .is-hinted { animation: none; }
+  .streak.is-bonus { animation: none; }
+  .screen--game .doc-slot { transition: none; }
+}

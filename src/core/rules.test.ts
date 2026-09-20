@@ -6,6 +6,7 @@ import {
   clickPoints,
   computeTotals,
   RANKS,
+  STREAK,
   liveAccuracy,
   nextRank,
   purityBreakdown,
@@ -13,6 +14,7 @@ import {
   rankFor,
   resolveRound,
   roundDuration,
+  streakBonus,
   suspiciousIds,
 } from './rules';
 import { GameEngine, createInitialState } from './engine';
@@ -43,6 +45,20 @@ const clean: Scenario = {
     { id: 'ok-2', text: 'согласовано', suspicious: false, note: '' },
   ],
   correctDecision: 'pass',
+};
+
+/** Пять признаков риска подряд — чтобы проверить серию до ×5. */
+const long: Scenario = {
+  ...demo,
+  id: 'demo-long',
+  hotspots: [
+    { id: 'f1', text: '1', suspicious: true, note: '' },
+    { id: 'f2', text: '2', suspicious: true, note: '' },
+    { id: 'f3', text: '3', suspicious: true, note: '' },
+    { id: 'f4', text: '4', suspicious: true, note: '' },
+    { id: 'f5', text: '5', suspicious: true, note: '' },
+    { id: 'ok', text: 'норма', suspicious: false, note: '' },
+  ],
 };
 
 describe('очки за клики', () => {
@@ -421,5 +437,107 @@ describe('звания', () => {
       expect(ahead!.progress).toBeLessThanOrEqual(1);
       expect(ahead!.need).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('серия верных отметок', () => {
+  it('бонус даётся только на пороге, а не на каждой отметке', () => {
+    expect(streakBonus(1)).toBe(0);
+    expect(streakBonus(2)).toBe(0);
+    expect(streakBonus(3)).toBe(STREAK.bonuses[0].points);
+    expect(streakBonus(4)).toBe(0);
+    expect(streakBonus(5)).toBe(STREAK.bonuses[1].points);
+    expect(streakBonus(6)).toBe(0);
+  });
+
+  it('растёт на признаках риска и рвётся ошибочной отметкой', () => {
+    const engine = new GameEngine([long]);
+    engine.start();
+
+    expect(engine.clickHotspot('f1').streak).toBe(1);
+    expect(engine.clickHotspot('f2').streak).toBe(2);
+    const third = engine.clickHotspot('f3');
+    expect(third.streak).toBe(3);
+    expect(third.streakBonus).toBe(STREAK.bonuses[0].points);
+
+    const wrong = engine.clickHotspot('ok');
+    expect(wrong.streak).toBe(0);
+    expect(wrong.streakBonus).toBe(0);
+  });
+
+  it('лучшая серия запоминается даже после обрыва', () => {
+    const engine = new GameEngine([long]);
+    engine.start();
+    for (const id of ['f1', 'f2', 'f3', 'f4', 'f5']) engine.clickHotspot(id);
+    expect(engine.getState().streak).toBe(5);
+    engine.clickHotspot('ok');
+    expect(engine.getState().streak).toBe(0);
+    expect(engine.getState().bestStreak).toBe(5);
+  });
+
+  it('бонус за порог попадает в счёт', () => {
+    const engine = new GameEngine([long]);
+    engine.start();
+    engine.clickHotspot('f1');
+    engine.clickHotspot('f2');
+    const before = engine.getState().score;
+    engine.clickHotspot('f3');
+    expect(engine.getState().score).toBe(before + SCORING.hit + STREAK.bonuses[0].points);
+  });
+
+  it('неверное решение рвёт серию', () => {
+    const engine = new GameEngine([long]);
+    engine.start();
+    engine.clickHotspot('f1');
+    engine.clickHotspot('f2');
+    expect(engine.getState().streak).toBe(2);
+    engine.decide('pass'); // верное решение — stop
+    expect(engine.getState().streak).toBe(0);
+  });
+});
+
+describe('подсказка', () => {
+  it('указывает на ненайденный признак и стоит очков', () => {
+    const engine = new GameEngine([demo]);
+    engine.start();
+    const before = engine.getState().score;
+
+    expect(engine.canHint()).toBe(true);
+    const hint = engine.useHint();
+    expect(hint.hotspotId).toBe('bad-1');
+    expect(hint.cost).toBe(SCORING.hintCost);
+    expect(engine.getState().score).toBe(before + SCORING.hintCost);
+  });
+
+  it('вторая подсказка на том же документе не даётся', () => {
+    const engine = new GameEngine([demo]);
+    engine.start();
+    engine.useHint();
+    expect(engine.canHint()).toBe(false);
+    expect(engine.useHint().hotspotId).toBeNull();
+    expect(engine.getState().hintsUsed).toBe(1);
+  });
+
+  it('не указывает на уже найденный признак', () => {
+    const engine = new GameEngine([demo]);
+    engine.start();
+    engine.clickHotspot('bad-1');
+    expect(engine.useHint().hotspotId).toBe('bad-2');
+  });
+
+  it('на документе без нарушений подсказки нет', () => {
+    const engine = new GameEngine([clean]);
+    engine.start();
+    expect(engine.canHint()).toBe(false);
+    expect(engine.useHint().hotspotId).toBeNull();
+  });
+
+  it('взятая подсказка попадает в итог раунда и партии', () => {
+    const engine = new GameEngine([demo]);
+    engine.start();
+    engine.useHint();
+    engine.decide('stop');
+    expect(engine.getState().lastResult?.hints).toBe(1);
+    expect(engine.getTotals().hintsUsed).toBe(1);
   });
 });
