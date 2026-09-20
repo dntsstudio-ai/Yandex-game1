@@ -20,6 +20,9 @@ body {
 }
 
 .app {
+  /* Страховка от горизонтального переполнения: из-за него мобильные
+     браузеры уменьшают масштаб страницы целиком. */
+  overflow-x: clip;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;

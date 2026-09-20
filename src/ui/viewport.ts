@@ -72,20 +72,25 @@ export function setupViewport(stage: HTMLElement, hintHost: HTMLElement): Viewpo
   };
 }
 
-/** Подсказка «поверните экран» с возможностью остаться в книжном режиме. */
+/**
+ * Подсказка «поверните экран».
+ *
+ * Именно плашка снизу, а не полноэкранный слой: раньше подсказка
+ * перекрывала меню целиком, и до неё игра выглядела неработающей.
+ * Теперь меню видно и им можно пользоваться, не закрывая подсказку.
+ */
 function renderRotateHint(onStay: () => void): HTMLElement {
   const node = document.createElement('div');
   node.className = 'rotate-hint';
   node.innerHTML = `
     <div class="rotate-inner">
-      <svg class="rotate-icon" viewBox="0 0 120 80" aria-hidden="true">
-        <rect class="rotate-phone" x="42" y="6" width="36" height="68" rx="6" />
-        <path class="rotate-arrow" d="M96 26a42 42 0 0 1-8 30" />
-        <path class="rotate-arrow" d="M88 56l9 1-3-9" />
+      <svg class="rotate-icon" viewBox="0 0 48 40" aria-hidden="true">
+        <rect class="rotate-phone" x="17" y="4" width="14" height="28" rx="3" />
+        <path class="rotate-arrow" d="M38 12a15 15 0 0 1-3 13" />
+        <path class="rotate-arrow" d="M35 25l4 1-1-4" />
       </svg>
-      <p class="rotate-title">Поверните экран</p>
-      <p class="rotate-text">Горизонтально документы читаются целиком — так играть удобнее.</p>
-      <button type="button" class="btn btn--ghost" data-action="stay">Играть вертикально</button>
+      <p class="rotate-text"><b>Поверните экран</b>Горизонтально удобнее: документ виден целиком</p>
+      <button type="button" class="rotate-close" data-action="stay" aria-label="Скрыть подсказку">✕</button>
     </div>
   `;
   node.querySelector('[data-action="stay"]')?.addEventListener('click', onStay);

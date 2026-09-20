@@ -31,6 +31,12 @@ const SLOGANS = [
 ];
 
 /**
+ * Длительность интро, мс. После неё состояние фиксируется классом
+ * menu-settled, и поздние изменения классов уже не перезапускают анимации.
+ */
+const INTRO_MS = 5200;
+
+/**
  * Длительность входа в здание, мс. Затемнение в CSS заканчивается на 1500 мс;
  * запас в 60 мс гарантирует, что игровой экран подменит сцену уже на чёрном
  * кадре, а не за кадр до него.
@@ -38,7 +44,12 @@ const SLOGANS = [
 const EXIT_MS = 1560;
 const EXIT_MS_REDUCED = 320;
 
-export function createMenuScene(): MenuScene {
+/**
+ * @param logoReady Решение о логотипе. Таймлайн ждёт его, потому что классы
+ * `menu-has-logo` меняют состав анимаций: добавленные позже, они запускали
+ * интро заново, и логотип с кнопками снова исчезали на несколько секунд.
+ */
+export function createMenuScene(logoReady?: Promise<unknown>): MenuScene {
   const reduceMotion = prefersReducedMotion();
 
   const root = h('div', 'menu-scene');
@@ -78,33 +89,68 @@ export function createMenuScene(): MenuScene {
     <div class="menu-blackout"></div>
   `;
 
-  // ---------- фотография запускает интро ----------
+  // ---------- интро стартует, когда готовы фотография и решение о логотипе ----------
+  let started = false;
+
   const startTimeline = () => {
+    if (started) return;
+    started = true;
+
+    // Вариант таймлайна фиксируется один раз, на старте. Если решение о
+    // логотипе опоздало, интро идёт по обычной схеме, а логотип просто
+    // встаёт на место флага — без перезапуска анимаций.
+    if (document.body.classList.contains('menu-has-logo')) {
+      document.body.classList.add('menu-logo-intro');
+    }
+
     document.body.classList.add('menu-live');
     if (reduceMotion) document.body.classList.add('menu-skip');
+
+    // После окончания интро состояние фиксируется: поздние изменения классов
+    // больше не могут перезапустить анимации и спрятать интерфейс.
+    settleTimer = window.setTimeout(
+      () => document.body.classList.add('menu-settled'),
+      reduceMotion ? 300 : INTRO_MS,
+    );
   };
+
+  let photoReady = false;
+  let logoDecided = logoReady === undefined;
+  const tryStart = () => {
+    if (photoReady && logoDecided) startTimeline();
+  };
+
+  void logoReady?.finally(() => {
+    logoDecided = true;
+    tryStart();
+  });
 
   const photo = root.querySelector<HTMLImageElement>('.menu-photo');
   if (photo) {
     photo.addEventListener('load', () => {
       root.classList.add('is-ready');
-      startTimeline();
+      photoReady = true;
+      tryStart();
     }, { once: true });
     photo.addEventListener('error', () => {
       root.classList.add('is-photoless');
-      startTimeline();
+      photoReady = true;
+      tryStart();
     }, { once: true });
     photo.src = assetUrl(MEDIA.menuBackdrop);
   } else {
-    startTimeline();
+    photoReady = true;
+    tryStart();
   }
 
-  // Если картинка не пришла за 2,5 с, показываем меню всё равно.
-  const safety = window.setTimeout(startTimeline, 2500);
+  // Ждать вечно нельзя: при медленной сети меню показывается и без ассетов.
+  const safety = window.setTimeout(startTimeline, 1800);
+  let settleTimer = 0;
 
   // ---------- пропуск интро по действию игрока ----------
   const skipIntro = () => {
-    document.body.classList.add('menu-live', 'menu-skip');
+    started = true;
+    document.body.classList.add('menu-live', 'menu-skip', 'menu-settled');
   };
   const onSkip = () => {
     if (!document.body.classList.contains('menu-skip')) skipIntro();
@@ -148,6 +194,7 @@ export function createMenuScene(): MenuScene {
 
   const cleanup = () => {
     window.clearTimeout(safety);
+    window.clearTimeout(settleTimer);
     window.clearInterval(clockTimer);
     window.removeEventListener('pointerdown', onSkip);
     window.removeEventListener('keydown', onSkip);
@@ -174,6 +221,8 @@ export function createMenuScene(): MenuScene {
         'menu-intro',
         'menu-live',
         'menu-skip',
+        'menu-settled',
+        'menu-logo-intro',
         'menu-exit',
         'menu-has-logo',
       );

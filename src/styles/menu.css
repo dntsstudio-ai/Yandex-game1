@@ -259,17 +259,23 @@
   z-index: 3;
 }
 
-/* Мягкое затемнение под заголовком: иначе текст теряется на светлом фасаде. */
+/*
+ * Мягкое затемнение под заголовком: иначе текст теряется на светлом фасаде.
+ *
+ * Без выхода за границы блока: отрицательные отступы делали страницу шире
+ * экрана, и мобильный браузер уменьшал масштаб всей игры. Мягкость даёт
+ * сам градиент — он сходит на нет, не доходя до краёв.
+ */
 .screen--start .start-inner::before {
   content: '';
   position: absolute;
-  inset: -12% -18%;
+  inset: 0;
   z-index: -1;
   background: radial-gradient(
-    58% 52% at 50% 46%,
-    rgba(4, 6, 10, 0.82) 0%,
-    rgba(4, 6, 10, 0.55) 45%,
-    transparent 78%
+    88% 62% at 50% 46%,
+    rgba(4, 6, 10, 0.88) 0%,
+    rgba(4, 6, 10, 0.6) 42%,
+    transparent 76%
   );
   pointer-events: none;
 }
@@ -286,8 +292,12 @@
   padding: 10px 20px;
 }
 
-/* До запуска таймлайна интерфейс не показан. */
-body.menu-intro .start-inner > * {
+/*
+ * До запуска таймлайна интерфейс не показан.
+ * Условие :not(.menu-live) обязательно: иначе видимость держалась бы
+ * только на анимациях, и любой сбой оставлял бы меню пустым навсегда.
+ */
+body.menu-intro:not(.menu-live) .start-inner > * {
   opacity: 0;
 }
 
@@ -379,7 +389,12 @@ body.menu-intro .start-inner > * {
 
 /* ---------- вариант с логотипом-картинкой ----------
    На логотипе уже есть название, поэтому текстовый заголовок прячется
-   (остаётся для скринридеров), а сам логотип выходит одним планом. */
+   (остаётся для скринридеров), а сам логотип выходит одним планом.
+
+   Класс menu-has-logo отвечает только за оформление, а за состав анимаций —
+   menu-logo-intro, который выставляется один раз на старте интро. Раньше это
+   был один класс, и приход решения о логотипе после старта перезапускал
+   анимации: логотип и кнопки исчезали на несколько секунд. */
 body.menu-has-logo .start-title {
   position: absolute;
   width: 1px;
@@ -392,30 +407,35 @@ body.menu-has-logo .start-title {
 }
 
 body.menu-has-logo .start-inner::before {
-  inset: -16% -20%;
+  background: radial-gradient(
+    92% 66% at 50% 44%,
+    rgba(4, 6, 10, 0.9) 0%,
+    rgba(4, 6, 10, 0.62) 44%,
+    transparent 78%
+  );
 }
 
-body.menu-live.menu-has-logo .flag-mark {
+body.menu-live.menu-logo-intro .flag-mark {
   animation: logo-in 1.3s var(--ease) 1.2s both;
 }
 
-body.menu-live.menu-has-logo .start-tagline {
+body.menu-live.menu-logo-intro .start-tagline {
   animation: rise-in 0.8s var(--ease) 2.3s both;
 }
 
-body.menu-live.menu-has-logo .start-actions {
+body.menu-live.menu-logo-intro .start-actions {
   animation: rise-in 0.8s var(--ease) 2.7s both;
 }
 
-body.menu-live.menu-has-logo .start-rules {
+body.menu-live.menu-logo-intro .start-rules {
   animation: rise-in 0.8s var(--ease) 3s both;
 }
 
-body.menu-live.menu-has-logo .menu-hud {
+body.menu-live.menu-logo-intro .menu-hud {
   animation: layer-in 1.2s var(--ease) 3.2s both;
 }
 
-body.menu-live.menu-has-logo .menu-ticker {
+body.menu-live.menu-logo-intro .menu-ticker {
   animation: layer-in 1.2s var(--ease) 3.4s both;
 }
 
@@ -423,6 +443,19 @@ body.menu-live.menu-has-logo .menu-ticker {
   from { opacity: 0; transform: translateY(18px) scale(0.94); }
   60% { opacity: 1; }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/*
+ * После интро состояние зафиксировано: анимации выключены, всё видно.
+ * Это страховка от поздних изменений классов — они перезапускали
+ * анимации, и логотип с кнопками исчезали на несколько секунд.
+ */
+body.menu-settled:not(.menu-exit) .start-inner > *,
+body.menu-settled:not(.menu-exit) .flag-mark,
+body.menu-settled:not(.menu-exit) .menu-hud,
+body.menu-settled:not(.menu-exit) .menu-ticker {
+  animation: none !important;
+  opacity: 1;
 }
 
 /* ============ ПРОПУСК ИНТРО ============ */

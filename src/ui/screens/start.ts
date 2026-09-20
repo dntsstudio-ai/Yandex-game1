@@ -42,7 +42,9 @@ export function renderStartScreen(
 
   // Логотип-картинка заменяет нарисованный флаг и текстовый заголовок:
   // название уже есть на самой картинке, показывать его дважды нельзя.
-  void findAsset(MEDIA.logo, 'image').then((found) => {
+  // Сцена ждёт этого решения: класс, добавленный после старта интро,
+  // перезапускал бы анимации и снова прятал логотип и кнопки.
+  const logoReady = findAsset(MEDIA.logo, 'image').then((found) => {
     if (!found) return;
     const mark = root.querySelector('.flag-mark');
     if (!mark) return;
@@ -52,7 +54,7 @@ export function renderStartScreen(
 
   // Сцену монтирует контроллер — вне масштабируемой области, чтобы фон
   // занимал весь экран даже в уменьшенном альбомном режиме.
-  const scene = createMenuScene();
+  const scene = createMenuScene(logoReady);
 
   root.querySelector('[data-action="start"]')?.addEventListener('click', handlers.onStart);
   root.querySelector('[data-action="about"]')?.addEventListener('click', handlers.onAbout);
