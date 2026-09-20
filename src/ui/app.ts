@@ -5,9 +5,10 @@
  */
 import { GameEngine } from '../core/engine';
 import { settings } from '../core/settings';
-import { setMasterVolume } from '../core/sound/context';
+import { audioContext, setMasterVolume } from '../core/sound/context';
 import { music } from '../core/sound/music';
 import { sfx } from '../core/sound/sfx';
+import { voice } from '../core/sound/voice';
 import type { Decision, GameState } from '../core/types';
 import { h } from './dom';
 import { renderAbout } from './screens/about';
@@ -54,6 +55,37 @@ export class App {
 
     setMasterVolume(settings.get().volume);
     this.engine.subscribe((state) => this.onState(state));
+    this.playIntroSting();
+  }
+
+  /**
+   * Заставка при открытии игры: один раз за загрузку страницы, в меню.
+   *
+   * Браузеры не дают запустить звук до действия игрока, поэтому пробуем
+   * сразу, а при отказе ждём первого касания или нажатия клавиши.
+   */
+  private playIntroSting(): void {
+    let played = false;
+
+    const attempt = () => {
+      if (played) return;
+      played = true;
+      sfx.unlock();
+      // файл заставки может быть ещё в пути — ждём именно его
+      void sfx.playWhenReady('intro');
+      window.removeEventListener('pointerdown', attempt);
+      window.removeEventListener('keydown', attempt);
+    };
+
+    // Звук уже разрешён (игрок возвращался на страницу) — играем сразу.
+    const ctx = audioContext();
+    if (ctx && ctx.state === 'running') {
+      attempt();
+      return;
+    }
+
+    window.addEventListener('pointerdown', attempt, { once: true });
+    window.addEventListener('keydown', attempt, { once: true });
   }
 
   private onState(state: GameState): void {
@@ -324,6 +356,8 @@ export class App {
         setMasterVolume(next.volume);
         music.setVolume(next.volume);
         music.setEnabled(next.music);
+        // Озвучку выключили посреди реплики — обрываем её сразу.
+        if (!next.voice) voice.stop();
         if (next.sound) sfx.play('click');
       },
     );

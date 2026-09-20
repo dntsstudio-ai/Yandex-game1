@@ -9,6 +9,7 @@
  * нарисованный средствами CSS силуэт, и логика реплик не меняется.
  */
 import { assetUrl } from '../core/assets';
+import { voice, type VoiceState } from '../core/sound/voice';
 import { h } from './dom';
 
 /**
@@ -95,12 +96,35 @@ export function createSpeechBar(name = GUIDE_NAME): SpeechBar {
   const root = h('div', 'speech');
   root.innerHTML = `
     <span class="speech-name">${name}</span>
+    <button type="button" class="speech-voice" data-speech="voice" hidden
+      aria-label="Прослушать реплику"></button>
     <p class="speech-text" data-speech="text"></p>
     <span class="speech-next" data-speech="next" hidden>ДАЛЬШЕ</span>
   `;
 
   const textEl = root.querySelector<HTMLElement>('[data-speech="text"]');
   const nextEl = root.querySelector<HTMLElement>('[data-speech="next"]');
+  const voiceButton = root.querySelector<HTMLButtonElement>('[data-speech="voice"]');
+
+  // Кнопка меняет смысл по состоянию: пока реплика звучит — пауза,
+  // на паузе — продолжить, после конца — прослушать снова.
+  const paintVoice = (state: VoiceState) => {
+    if (!voiceButton) return;
+    voiceButton.hidden = !voice.hasClip();
+    voiceButton.dataset.state = state;
+    voiceButton.textContent =
+      state === 'playing' ? 'ПАУЗА' : state === 'paused' ? 'ПРОДОЛЖИТЬ' : 'ПРОСЛУШАТЬ СНОВА';
+  };
+
+  const unsubscribe = voice.subscribe(paintVoice);
+
+  voiceButton?.addEventListener('click', (event) => {
+    // нажатие по кнопке не должно листать реплику
+    event.stopPropagation();
+    // Пока реплика звучит, запустить её заново нельзя — только пауза.
+    if (voice.getState() === 'idle') voice.replay();
+    else voice.toggle();
+  });
 
   let timer = 0;
   let full = '';
@@ -125,6 +149,7 @@ export function createSpeechBar(name = GUIDE_NAME): SpeechBar {
     root,
     say(text, onDone) {
       window.clearInterval(timer);
+      paintVoice(voice.getState());
       full = text;
       shown = 0;
       done = onDone ?? null;
@@ -149,6 +174,7 @@ export function createSpeechBar(name = GUIDE_NAME): SpeechBar {
     },
     destroy() {
       window.clearInterval(timer);
+      unsubscribe();
       root.remove();
     },
   };

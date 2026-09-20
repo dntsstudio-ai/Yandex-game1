@@ -120,3 +120,48 @@
   .guide-figure { transition: none; }
   .speech-next { animation: none; opacity: 0.7; }
 }
+
+/* ---------- кнопка озвучки ---------- */
+.speech-voice {
+  position: absolute;
+  top: clamp(8px, 1.2vh, 14px);
+  right: clamp(14px, 2vw, 22px);
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  cursor: pointer;
+  transition: color 0.2s var(--ease), border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.speech-voice:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.speech-voice[hidden] {
+  display: none;
+}
+
+/* Пока реплика звучит, кнопка означает паузу и подсвечена. */
+.speech-voice[data-state='playing'] {
+  color: var(--red);
+  border-color: rgba(255, 77, 85, 0.5);
+  background: rgba(255, 77, 85, 0.1);
+}
+
+.speech-voice[data-state='paused'] {
+  color: var(--gold);
+  border-color: rgba(232, 184, 106, 0.5);
+}
+
+/* Подпись имени не должна заезжать под кнопку. */
+.speech-name {
+  padding-right: 120px;
+}

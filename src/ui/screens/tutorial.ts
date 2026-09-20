@@ -9,6 +9,7 @@
  * свои клики и свой таймер. Основной счёт оно не трогает, поэтому
  * игровой цикл и правила остаются нетронутыми.
  */
+import { voice, type VoiceClip } from '../../core/sound/voice';
 import type { Scenario } from '../../core/types';
 import { h } from '../dom';
 import { renderDocument } from '../documentView';
@@ -73,23 +74,69 @@ const LESSON: Scenario = {
   explanation: '',
 };
 
+/** Реплика: текст, поза и озвучка. */
+interface Line {
+  text: string;
+  pose: GuidePose;
+  voice?: VoiceClip;
+}
+
+/**
+ * Границы фраз в общей записи обучения.
+ *
+ * Все десять фраз записаны одним файлом, и нарезать их на отдельные mp3
+ * без перекодирования нельзя, поэтому запоминаются отрезки. Границы
+ * найдены по паузам в записи; если фраза начнёт звучать не под своей
+ * строкой, править нужно здесь — переподготавливать файл не придётся.
+ */
+const LESSON_VOICE = 'voice/lesson.mp3';
+const LESSON_CUTS: Array<[number, number]> = [
+  [0.0, 8.7],
+  [8.85, 14.3],
+  [14.6, 18.75],
+  [18.95, 22.8],
+  [23.0, 28.3],
+  [28.8, 31.15],
+  [31.45, 34.45],
+  [34.85, 40.65],
+  [41.15, 45.55],
+  [45.9, 50.3],
+  [50.5, 55.2],
+  [55.5, 59.25],
+  [59.45, 63.9],
+];
+
+/** Отрезок записи обучения по номеру фразы. */
+function lesson(index: number): VoiceClip | undefined {
+  const cut = LESSON_CUTS[index];
+  return cut ? { src: LESSON_VOICE, start: cut[0], end: cut[1] } : undefined;
+}
+
 /** Знакомство до выбора. */
-const INTRO: Array<{ text: string; pose: GuidePose }> = [
-  { text: 'Ах... Кого там ещё к нам занесло?', pose: 'tired' },
-  { text: 'А, это ты? Новый инспектор? Отлично.', pose: 'ok' },
-  { text: 'Ты тут новенький? Показать, как всё устроено?', pose: 'think' },
+const INTRO: Line[] = [
+  { text: 'Ах... Кого там ещё к нам занесло?', pose: 'tired', voice: { src: 'voice/intro-1.mp3' } },
+  { text: 'А, это ты? Новый инспектор? Отлично.', pose: 'ok', voice: { src: 'voice/intro-2.mp3' } },
+  {
+    text: 'Ты тут новенький? Показать, как всё устроено?',
+    pose: 'think',
+    voice: { src: 'voice/intro-3.mp3' },
+  },
 ];
 
 /** Что говорит инспектор, если обучение пропустили. */
-const ORDER: Array<{ text: string; pose: GuidePose }> = [
-  { text: 'Не новенький, значит. Ну смотри.', pose: 'neutral' },
-  { text: 'Тогда за работу! Чтоб мир стал чище!', pose: 'point' },
+const ORDER: Line[] = [
+  { text: 'Не новенький, значит. Ну смотри.', pose: 'neutral', voice: { src: 'voice/order-1.mp3' } },
+  {
+    text: 'Тогда за работу! Чтоб мир стал чище!',
+    pose: 'point',
+    voice: { src: 'voice/order-2.mp3' },
+  },
 ];
 
 interface Slide {
   title: string;
   /** Реплики инспектора: показываются по очереди. */
-  lines: Array<{ text: string; pose: GuidePose }>;
+  lines: Line[];
   /** Что показывать над полосой реплики. */
   stage: 'doc' | 'decision' | 'timer' | 'none';
   /** Какой фрагмент ждём от игрока, чтобы пойти дальше. */
@@ -100,8 +147,12 @@ const SLIDES: Slide[] = [
   {
     title: 'НАЙДИ ПРИЗНАК РИСКА',
     lines: [
-      { text: 'Смотри внимательно. Подозрительный кусок текста отмечают нажатием.', pose: 'work' },
-      { text: 'Вот этот я подсветил для примера. Жми на него.', pose: 'point' },
+      {
+        text: 'Смотри внимательно. Подозрительный кусок текста отмечают нажатием.',
+        pose: 'work',
+        voice: lesson(0),
+      },
+      { text: 'Вот этот я подсветил для примера. Жми на него.', pose: 'point', voice: lesson(1) },
     ],
     stage: 'doc',
     expect: 't-flag',
@@ -109,8 +160,16 @@ const SLIDES: Slide[] = [
   {
     title: 'БУДЬ ВНИМАТЕЛЕН',
     lines: [
-      { text: 'Только не жми всё подряд. В документе полно обычных данных.', pose: 'think' },
-      { text: 'Попробуй нажать на обычную строку — посмотрим, что выйдет.', pose: 'neutral' },
+      {
+        text: 'Только не жми всё подряд. В документе полно обычных данных.',
+        pose: 'think',
+        voice: lesson(2),
+      },
+      {
+        text: 'Попробуй нажать на обычную строку — посмотрим, что выйдет.',
+        pose: 'neutral',
+        voice: lesson(3),
+      },
     ],
     stage: 'doc',
     expect: 't-normal',
@@ -118,24 +177,44 @@ const SLIDES: Slide[] = [
   {
     title: 'ПРИНЯТЬ РЕШЕНИЕ',
     lines: [
-      { text: 'Проверил документ — решай. Нашёл нарушение, останавливай.', pose: 'work' },
-      { text: 'Документ чист — пропускай. Здесь на счёт это не влияет, пробуй.', pose: 'neutral' },
+      {
+        text: 'Проверил документ — решай. Нашёл нарушение, останавливай.',
+        pose: 'work',
+        voice: lesson(4),
+      },
+      {
+        text: 'Документ чист — пропускай. Здесь на счёт это не влияет, пробуй.',
+        pose: 'neutral',
+        voice: lesson(5),
+      },
     ],
     stage: 'decision',
   },
   {
     title: 'СЛЕДИ ЗА ВРЕМЕНЕМ',
     lines: [
-      { text: 'И главное: время. На каждый документ его в обрез.', pose: 'time' },
-      { text: 'Последние секунды отсчитываются вслух. Смотри.', pose: 'time' },
+      { text: 'И главное: время. На каждый документ его в обрез.', pose: 'time', voice: lesson(6) },
+      {
+        text: 'Последние секунды отсчитываются вслух. Смотри.',
+        pose: 'time',
+        voice: lesson(7),
+      },
     ],
     stage: 'timer',
   },
   {
     title: 'ГОТОВО',
     lines: [
-      { text: 'Вот и всё, что нужно знать. Остальное придёт с опытом.', pose: 'ok' },
-      { text: 'Дело за тобой, инспектор. Чтоб мир стал чище!', pose: 'point' },
+      {
+        text: 'Вот и всё, что нужно знать. Остальное придёт с опытом.',
+        pose: 'ok',
+        voice: lesson(8),
+      },
+      {
+        text: 'Дело за тобой, инспектор. Чтоб мир стал чище!',
+        pose: 'point',
+        voice: lesson(9),
+      },
     ],
     stage: 'none',
   },
@@ -192,7 +271,7 @@ export function renderTutorial(handlers: TutorialHandlers): TutorialScreen {
   // ---------- общая механика реплик ----------
 
   /** Проигрывает цепочку реплик, затем вызывает then(). */
-  function playLines(lines: Array<{ text: string; pose: GuidePose }>, then: () => void): void {
+  function playLines(lines: Line[], then: () => void): void {
     let index = 0;
 
     const step = () => {
@@ -206,6 +285,9 @@ export function renderTutorial(handlers: TutorialHandlers): TutorialScreen {
       index += 1;
       guide.setPose(line.pose);
       speech.say(line.text);
+      // Озвучка идёт под текстом: её можно слушать, а можно читать молча.
+      if (line.voice) void voice.play(line.voice);
+      else voice.stop();
       advance = step;
     };
 
@@ -217,7 +299,11 @@ export function renderTutorial(handlers: TutorialHandlers): TutorialScreen {
     const target = event.target as HTMLElement;
     // кнопки и документ обрабатывают нажатие сами
     if (target.closest('button') || target.closest('.novel-stage')) return;
-    if (speech.skip()) return;
+    // Пролистали текст — обрываем и реплику: слушать нечего, она уже прочитана.
+    if (speech.skip()) {
+      voice.stop();
+      return;
+    }
     advance?.();
   };
 
@@ -227,7 +313,10 @@ export function renderTutorial(handlers: TutorialHandlers): TutorialScreen {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     if (document.activeElement instanceof HTMLButtonElement) return;
     event.preventDefault();
-    if (speech.skip()) return;
+    if (speech.skip()) {
+      voice.stop();
+      return;
+    }
     advance?.();
   };
   window.addEventListener('keydown', onKey);
@@ -419,6 +508,7 @@ export function renderTutorial(handlers: TutorialHandlers): TutorialScreen {
     root,
     destroy() {
       destroyed = true;
+      voice.dispose();
       window.clearInterval(timerHandle);
       root.removeEventListener('click', onAdvance);
       window.removeEventListener('keydown', onKey);

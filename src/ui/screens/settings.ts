@@ -28,6 +28,15 @@ export function renderSettings(onClose: () => void, onChange: (next: Settings) =
         <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>
       </label>
 
+      <label class="switch">
+        <span class="switch-text">
+          <strong>${icon('sound-on', 'icon--on')}${icon('sound-off', 'icon--off')}Озвучка инспектора</strong>
+          <small>Реплики в обучении можно слушать или читать молча</small>
+        </span>
+        <input type="checkbox" data-setting="voice" ${current.voice ? 'checked' : ''} />
+        <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>
+      </label>
+
       <label class="slider">
         <span class="switch-text">
           <strong>Громкость</strong>
@@ -51,7 +60,7 @@ export function renderSettings(onClose: () => void, onChange: (next: Settings) =
         onChange(settings.update({ volume }));
         return;
       }
-      if (key === 'music' || key === 'sound') {
+      if (key === 'music' || key === 'sound' || key === 'voice') {
         onChange(settings.update({ [key]: input.checked } as Partial<Settings>));
       }
     });

@@ -20,7 +20,9 @@ export type SoundName =
   | 'timeout'
   | 'tick'
   | 'count'
-  | 'final';
+  | 'final'
+  /** Заставка при открытии игры. */
+  | 'intro';
 
 /** Все имена: по ним же ищутся файлы в public/media/sfx. */
 export const SOUND_NAMES: readonly SoundName[] = [
@@ -35,10 +37,13 @@ export const SOUND_NAMES: readonly SoundName[] = [
   'tick',
   'count',
   'final',
+  'intro',
 ];
 
 class SfxEngine {
   private unlocked = false;
+  /** Загрузка записанных эффектов: заставке нужно дождаться её файла. */
+  private loading: Promise<void> | null = null;
 
   /** Вызывается по первому действию пользователя. */
   unlock(): void {
@@ -48,7 +53,18 @@ class SfxEngine {
 
     // Файлы подгружаются в фоне: до их появления играет синтез.
     const ctx = audioContext();
-    if (ctx) void loadSamples(ctx, SOUND_NAMES);
+    if (ctx) this.loading = loadSamples(ctx, SOUND_NAMES);
+  }
+
+  /**
+   * Проигрывает звук, когда его файл загружен.
+   * Нужно для заставки: она звучит один раз сразу после запуска, когда
+   * файлы ещё в пути, а синтезированной замены у неё нет.
+   */
+  async playWhenReady(name: SoundName): Promise<void> {
+    if (!this.unlocked) this.unlock();
+    await this.loading;
+    this.play(name);
   }
 
   play(name: SoundName): void {
@@ -94,6 +110,9 @@ class SfxEngine {
         break;
       case 'count':
         this.tone(880, 880, 0.03, 'sine', 0.04);
+        break;
+      case 'intro':
+        // Заставка звучит только из файла: подделывать её синтезом незачем.
         break;
       case 'final':
         this.arp([392, 523.25, 659.25, 783.99], 0.5, 'triangle', 0.16, 0.12);

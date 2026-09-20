@@ -5,6 +5,8 @@
 export interface Settings {
   music: boolean;
   sound: boolean;
+  /** Озвучка реплик инспектора: слушать или читать молча. */
+  voice: boolean;
   /** Общая громкость, 0…1. */
   volume: number;
 }
@@ -14,6 +16,7 @@ const STORAGE_KEY = 'red-flag:settings';
 const DEFAULTS: Settings = {
   music: true,
   sound: true,
+  voice: true,
   volume: 0.7,
 };
 
