@@ -84,32 +84,47 @@ interface Line {
 /**
  * Границы фраз в общей записи обучения.
  *
- * Все десять фраз записаны одним файлом, и нарезать их на отдельные mp3
- * без перекодирования нельзя, поэтому запоминаются отрезки. Границы
- * найдены по паузам в записи; если фраза начнёт звучать не под своей
- * строкой, править нужно здесь — переподготавливать файл не придётся.
+ * Все фразы записаны одним файлом на 65 секунд, и нарезать их на
+ * отдельные mp3 без перекодирования нельзя, а перекодировать нечем —
+ * поэтому хранятся отрезки. Границы найдены по паузам и сверены по
+ * темпу речи: он держится около 14 символов в секунду, и отрезок,
+ * выбивающийся из этого темпа, означает, что в нём слиплись две фразы.
+ *
+ * В записи есть не только реплики слайдов, но и ответы инспектора на
+ * действия игрока — отсюда порядок ниже. Если фраза зазвучит не под
+ * своей строкой, править нужно здесь: файл трогать не придётся.
  */
 const LESSON_VOICE = 'voice/lesson.mp3';
-const LESSON_CUTS: Array<[number, number]> = [
-  [0.0, 8.7],
-  [8.85, 14.3],
-  [14.6, 18.75],
-  [18.95, 22.8],
-  [23.0, 28.3],
-  [28.8, 31.15],
-  [31.45, 34.45],
-  [34.85, 40.65],
-  [41.15, 45.55],
-  [45.9, 50.3],
-  [50.5, 55.2],
-  [55.5, 59.25],
-  [59.45, 63.9],
-];
 
-/** Отрезок записи обучения по номеру фразы. */
-function lesson(index: number): VoiceClip | undefined {
-  const cut = LESSON_CUTS[index];
-  return cut ? { src: LESSON_VOICE, start: cut[0], end: cut[1] } : undefined;
+/** Отрезки по порядку звучания в записи. */
+const LESSON_CUTS = {
+  /** Слайд 1: «Смотри внимательно…» и «Вот этот я подсветил…». */
+  slide1a: [0.0, 5.1],
+  slide1b: [5.25, 8.7],
+  /** Ответ на верную отметку. */
+  hitNote: [8.85, 14.3],
+  /** Слайд 2. */
+  slide2a: [14.55, 18.75],
+  slide2b: [18.95, 22.8],
+  /** Ответ на ошибочную отметку. */
+  missNote: [22.95, 28.35],
+  /** Слайд 3. */
+  slide3a: [28.75, 33.1],
+  slide3b: [33.2, 40.7],
+  /** Ответ на принятое решение. */
+  decisionNote: [41.0, 45.6],
+  /** Слайд 4. */
+  slide4a: [45.85, 50.3],
+  slide4b: [50.45, 55.2],
+  /** Слайд 5. */
+  slide5a: [55.4, 59.2],
+  slide5b: [59.4, 63.9],
+} as const;
+
+/** Отрезок записи обучения по имени. */
+function lesson(name: keyof typeof LESSON_CUTS): VoiceClip {
+  const [start, end] = LESSON_CUTS[name];
+  return { src: LESSON_VOICE, start, end };
 }
 
 /** Знакомство до выбора. */
@@ -150,9 +165,9 @@ const SLIDES: Slide[] = [
       {
         text: 'Смотри внимательно. Подозрительный кусок текста отмечают нажатием.',
         pose: 'work',
-        voice: lesson(0),
+        voice: lesson('slide1a'),
       },
-      { text: 'Вот этот я подсветил для примера. Жми на него.', pose: 'point', voice: lesson(1) },
+      { text: 'Вот этот я подсветил для примера. Жми на него.', pose: 'point', voice: lesson('slide1b') },
     ],
     stage: 'doc',
     expect: 't-flag',
@@ -163,12 +178,12 @@ const SLIDES: Slide[] = [
       {
         text: 'Только не жми всё подряд. В документе полно обычных данных.',
         pose: 'think',
-        voice: lesson(2),
+        voice: lesson('slide2a'),
       },
       {
         text: 'Попробуй нажать на обычную строку — посмотрим, что выйдет.',
         pose: 'neutral',
-        voice: lesson(3),
+        voice: lesson('slide2b'),
       },
     ],
     stage: 'doc',
@@ -180,12 +195,12 @@ const SLIDES: Slide[] = [
       {
         text: 'Проверил документ — решай. Нашёл нарушение, останавливай.',
         pose: 'work',
-        voice: lesson(4),
+        voice: lesson('slide3a'),
       },
       {
         text: 'Документ чист — пропускай. Здесь на счёт это не влияет, пробуй.',
         pose: 'neutral',
-        voice: lesson(5),
+        voice: lesson('slide3b'),
       },
     ],
     stage: 'decision',
@@ -193,11 +208,11 @@ const SLIDES: Slide[] = [
   {
     title: 'СЛЕДИ ЗА ВРЕМЕНЕМ',
     lines: [
-      { text: 'И главное: время. На каждый документ его в обрез.', pose: 'time', voice: lesson(6) },
+      { text: 'И главное: время. На каждый документ его в обрез.', pose: 'time', voice: lesson('slide4a') },
       {
         text: 'Последние секунды отсчитываются вслух. Смотри.',
         pose: 'time',
-        voice: lesson(7),
+        voice: lesson('slide4b'),
       },
     ],
     stage: 'timer',
@@ -208,12 +223,12 @@ const SLIDES: Slide[] = [
       {
         text: 'Вот и всё, что нужно знать. Остальное придёт с опытом.',
         pose: 'ok',
-        voice: lesson(8),
+        voice: lesson('slide5a'),
       },
       {
         text: 'Дело за тобой, инспектор. Чтоб мир стал чище!',
         pose: 'point',
-        voice: lesson(9),
+        voice: lesson('slide5b'),
       },
     ],
     stage: 'none',
@@ -405,6 +420,7 @@ export function renderTutorial(handlers: TutorialHandlers): TutorialScreen {
 
       guide.setPose(hotspot.suspicious ? 'ok' : 'warn');
       speech.say(hotspot.note);
+      void voice.play(lesson(hotspot.suspicious ? 'hitNote' : 'missNote'));
 
       // Ошибочный клик отмечается явно — так же, как в игре.
       if (!hotspot.suspicious && !mistakeShown) {
@@ -468,6 +484,7 @@ export function renderTutorial(handlers: TutorialHandlers): TutorialScreen {
             ? 'Верно. В этом документе нарушение, его нужно остановить.'
             : 'Здесь-то нарушение есть, так что верно «ОСТАНОВИТЬ». Но выбор всегда твой.',
         );
+        void voice.play(lesson('decisionNote'));
         allowNext();
       });
     });
