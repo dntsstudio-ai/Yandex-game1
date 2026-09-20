@@ -1,8 +1,13 @@
 /**
- * Звуковые эффекты. Всё синтезируется на лету — внешних файлов нет.
+ * Звуковые эффекты.
+ *
+ * Если в `public/media/sfx/<имя>.mp3` лежит файл, играет он; для
+ * остальных звуков синтезируется замена. Набор файлов можно пополнять
+ * по одному — недостающие просто остаются синтезированными.
  */
 import { settings } from '../settings';
 import { audioContext, masterBus, noiseBuffer, reverbBus, setMasterVolume, unlockAudio } from './context';
+import { loadSamples, playSample } from './samples';
 
 export type SoundName =
   | 'hit'
@@ -17,6 +22,21 @@ export type SoundName =
   | 'count'
   | 'final';
 
+/** Все имена: по ним же ищутся файлы в public/media/sfx. */
+export const SOUND_NAMES: readonly SoundName[] = [
+  'hit',
+  'miss',
+  'click',
+  'paper',
+  'stamp',
+  'good',
+  'bad',
+  'timeout',
+  'tick',
+  'count',
+  'final',
+];
+
 class SfxEngine {
   private unlocked = false;
 
@@ -25,6 +45,10 @@ class SfxEngine {
     unlockAudio();
     setMasterVolume(settings.get().volume);
     this.unlocked = true;
+
+    // Файлы подгружаются в фоне: до их появления играет синтез.
+    const ctx = audioContext();
+    if (ctx) void loadSamples(ctx, SOUND_NAMES);
   }
 
   play(name: SoundName): void {
@@ -33,6 +57,9 @@ class SfxEngine {
     const bus = masterBus();
     if (!ctx || !bus) return;
     if (!this.unlocked) this.unlock();
+
+    // Записанный звук имеет приоритет над синтезированным.
+    if (playSample(ctx, bus, name)) return;
 
     switch (name) {
       case 'hit':
