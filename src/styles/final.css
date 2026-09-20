@@ -110,9 +110,10 @@
     padding-right: clamp(14px, 2.4vw, 28px);
   }
 
-  /* Сводка встала в колонку — три плитки читаются как строки протокола. */
+  /* Сводка из шести строк в одну колонку не помещалась в экран,
+     поэтому в правой колонке она идёт в два столбца. */
   .screen--final .stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-top: 0;
   }
 }
@@ -504,4 +505,35 @@ body.is-fit .screen--final {
 
 .screen--final .final-actions {
   margin-top: 2px;
+}
+
+/* ---------- строки протокола из ТЗ ---------- */
+.final-done {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  color: var(--text-dim);
+}
+
+.final-flags {
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  color: var(--text-soft);
+}
+
+.final-flags b {
+  color: var(--red);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.94rem;
+}
+
+/* Сводка выросла до шести строк — плитки чуть плотнее. */
+.screen--final .stat {
+  padding: 7px 11px;
+  font-size: 0.74rem;
+  gap: 8px;
+}
+
+.screen--final .stat strong {
+  font-size: 0.86rem;
 }

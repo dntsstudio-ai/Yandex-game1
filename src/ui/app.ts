@@ -13,6 +13,7 @@ import { h } from './dom';
 import { renderAbout } from './screens/about';
 import { renderFinalScreen, type FinalScreen } from './screens/final';
 import { renderGameScreen, type GameScreen } from './screens/game';
+import { renderMistakes } from './screens/mistakes';
 import { renderRoundResult } from './screens/roundResult';
 import { renderSettings } from './screens/settings';
 import { renderStartScreen } from './screens/start';
@@ -302,6 +303,7 @@ export class App {
         },
         onAbout: () => this.openAbout(),
         onSettings: () => this.openSettings(),
+        onMistakes: () => this.openMistakes(state),
         onCount: () => sfx.play('count'),
         onStamp: () => sfx.play('stamp'),
       },
@@ -309,6 +311,16 @@ export class App {
 
     this.finalScreen = screen;
     return screen.root;
+  }
+
+  /** Разбор ошибок поверх протокола. */
+  private openMistakes(state: GameState): void {
+    sfx.play('click');
+    const overlay = renderMistakes(state.results, this.engine.getScenarios(), () => {
+      sfx.play('click');
+      overlay.remove();
+    });
+    this.root.appendChild(overlay);
   }
 
   private openAbout(): void {

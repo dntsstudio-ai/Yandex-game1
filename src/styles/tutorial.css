@@ -193,3 +193,110 @@ body.has-ui-icons .tutorial-clock .icon {
 @media (prefers-reduced-motion: reduce) {
   .tutorial-mistake { animation: none; }
 }
+
+/* ============ Разбор ошибок ============ */
+.modal--mistakes {
+  width: min(620px, 100%);
+  max-height: min(78vh, 720px);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 14px;
+}
+
+.mistakes-list {
+  display: grid;
+  gap: 14px;
+  overflow-y: auto;
+  padding-right: 4px;
+  text-align: left;
+}
+
+.mistakes-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  color: var(--green);
+  font-size: 0.88rem;
+}
+
+body.has-ui-icons .mistakes-empty .icon {
+  --icon-size: 18px;
+}
+
+.mistake {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.mistake:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.mistake-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.mistake-index {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--line-strong);
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.mistake-note {
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+}
+
+.mistake-note--red { color: var(--red); }
+.mistake-note--grey { color: var(--text-dim); }
+
+.mistake-item {
+  display: grid;
+  gap: 3px;
+  padding: 9px 12px;
+  border-radius: var(--radius-s);
+  border-left: 3px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+/* Цвет не остаётся единственным признаком: у каждой строки есть подпись. */
+.mistake-item--missed { border-left-color: var(--amber); }
+.mistake-item--wrong { border-left-color: var(--red); }
+
+.mistake-tag {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--text-dim);
+}
+
+.mistake-item--missed .mistake-tag { color: var(--amber); }
+.mistake-item--wrong .mistake-tag { color: var(--red); }
+
+.mistake-text {
+  font-family: var(--font-doc);
+  font-size: 0.86rem;
+  color: var(--text);
+}
+
+.mistake-why {
+  font-size: 0.76rem;
+  color: var(--text-soft);
+  line-height: 1.4;
+}

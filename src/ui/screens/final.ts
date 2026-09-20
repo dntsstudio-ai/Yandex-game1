@@ -15,6 +15,8 @@ import { prefersReducedMotion } from '../menuScene';
 
 export interface FinalHandlers {
   onRestart: () => void;
+  /** Разбор ошибок: пропущенные признаки и лишние отметки. */
+  onMistakes: () => void;
   onAbout: () => void;
   onSettings: () => void;
   /** Тик счётчика во время анимации индекса чистоты. */
@@ -145,7 +147,11 @@ export function renderFinalScreen(
           </div>
 
           <div class="final-verdict">
+            <p class="final-done">ПРОВЕРКА ЗАВЕРШЕНА</p>
             <p class="final-rank">${rank.title}</p>
+            <p class="final-flags">
+              КРАСНЫХ ФЛАГОВ ОБНАРУЖЕНО: <b>${totals.found}</b> из ${totals.totalFlags}
+            </p>
             <p class="final-caption">${rank.caption}</p>
             ${
               ahead
@@ -214,6 +220,15 @@ export function renderFinalScreen(
             <div class="stat"><span>${icon('accuracy')}Точность кликов</span><strong>${
               totals.accuracy
             }%</strong></div>
+            <div class="stat"><span>${icon('doc')}Пропущено признаков</span><strong class="${
+              totals.missed > 0 ? 'is-warn' : ''
+            }">${totals.missed}</strong></div>
+            <div class="stat"><span>${icon('flag')}Ошибочных отметок</span><strong class="${
+              totals.falsePositives > 0 ? 'is-bad' : ''
+            }">${totals.falsePositives}</strong></div>
+            <div class="stat"><span>${icon('check')}Подсказок использовано</span><strong>${
+              totals.hintsUsed
+            }</strong></div>
             <div class="stat"><span>${icon('clock')}Потрачено времени</span><strong>${formatDuration(
               totals.elapsedMs,
             )}</strong></div>
@@ -223,6 +238,7 @@ export function renderFinalScreen(
 
       <div class="final-actions">
         <button type="button" class="btn btn--primary" data-action="restart">ИГРАТЬ СНОВА</button>
+        <button type="button" class="btn btn--ghost" data-action="mistakes">ПОКАЗАТЬ, ГДЕ Я ОШИБСЯ</button>
         <button type="button" class="btn btn--ghost" data-action="about">О ПРОЕКТЕ</button>
         <button type="button" class="btn btn--ghost" data-action="settings">НАСТРОЙКИ</button>
       </div>
@@ -230,6 +246,7 @@ export function renderFinalScreen(
   `;
 
   root.querySelector('[data-action="restart"]')?.addEventListener('click', handlers.onRestart);
+  root.querySelector('[data-action="mistakes"]')?.addEventListener('click', handlers.onMistakes);
   root.querySelector('[data-action="about"]')?.addEventListener('click', handlers.onAbout);
   root.querySelector('[data-action="settings"]')?.addEventListener('click', handlers.onSettings);
 
