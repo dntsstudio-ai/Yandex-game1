@@ -48,6 +48,8 @@ export class App {
   }
 
   private onState(state: GameState): void {
+    document.body.classList.toggle('is-final', state.phase === 'final');
+
     const key = `${state.phase}:${state.index}:${state.results.length}`;
     if (key !== this.renderedKey) {
       this.renderedKey = key;

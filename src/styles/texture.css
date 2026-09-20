@@ -9,17 +9,45 @@ body {
   background-attachment: fixed;
 }
 
-/* Если добавлена текстура фона (public/media/textures/backdrop.jpg) — кладём её под градиенты. */
+/*
+ * Фотографический фон сцены.
+ *
+ * z-index: 0, а не отрицательный: при отрицательном слой рисуется раньше
+ * собственного фона body, и непрозрачный градиент body полностью его
+ * перекрывал — картинку не было видно вовсе. Интерфейс лежит выше
+ * (.app имеет z-index 2), зерно и виньетка — между ними.
+ */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
-  z-index: -2;
+  z-index: 0;
   background-image: var(--backdrop-image);
   background-size: cover;
   background-position: center;
   opacity: 0.3;
   pointer-events: none;
+}
+
+/* На итоговом экране фон меняется на кабинет ночью: партия закончилась,
+   и место действия видно изнутри. */
+body.is-final::before {
+  background-image: var(--final-image, var(--backdrop-image));
+  /* Кадр тёмный по краям, а центр закрыт карточкой, поэтому слой
+     показываем почти в полную силу и слегка осветляем. */
+  opacity: 0.92;
+  filter: brightness(1.25) saturate(1.05);
+  animation: final-backdrop-in 1.4s var(--ease) both;
+}
+
+/* Виньетка на итоговом экране мешает разглядеть кабинет. */
+body.is-final::after {
+  opacity: 0.18;
+}
+
+@keyframes final-backdrop-in {
+  from { opacity: 0; transform: scale(1.05); }
+  to { opacity: 0.92; transform: scale(1); }
 }
 
 /* Зерно плёнки + виньетка: главный приём «дорогой» картинки.

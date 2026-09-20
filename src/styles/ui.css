@@ -9,8 +9,12 @@
 :root {
   --ui-panel-frame: none;
   --ui-button-frame: none;
-  --ui-button-frame-slice: 26;
-  --ui-panel-frame-slice: 28;
+  /* Срезы 9-slice в пикселях исходников: панель 836×471, кнопка 1000×380.
+     Углы и накладки должны попасть внутрь среза целиком. */
+  --ui-panel-frame-slice: 120;
+  --ui-panel-border: clamp(24px, 3.4vw, 46px);
+  --ui-button-frame-slice: 104;
+  --ui-button-border: 16px;
 }
 
 /* ---------- кнопки ---------- */
@@ -92,17 +96,23 @@
 }
 
 /* Графическая рамка кнопки, если добавлен ассет. */
-body.has-ui-button-frame .btn--primary,
-body.has-ui-button-frame .btn--pass,
-body.has-ui-button-frame .btn--stop {
+/*
+ * Рамка кнопки — только для главного действия экрана.
+ * На паре «ПРОПУСТИТЬ / ОСТАНОВИТЬ» она нарушала бы равновесие: металл
+ * заметно тяжелее и подталкивал бы игрока к одному из решений.
+ */
+body.has-ui-button-frame .btn--primary {
   border-image: var(--ui-button-frame) var(--ui-button-frame-slice) fill stretch;
-  border-width: calc(var(--ui-button-frame-slice) * 1px);
+  border-width: var(--ui-button-border);
   border-style: solid;
   border-radius: 0;
   background: none;
+  box-shadow: none;
+  padding: 10px 26px;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
 }
 
-body.has-ui-button-frame .btn::before {
+body.has-ui-button-frame .btn--primary::before {
   box-shadow: none;
 }
 
@@ -124,13 +134,25 @@ body.has-ui-button-frame .btn::before {
 .tick--br { bottom: 10px; right: 10px; border-left: 0; border-top: 0; }
 
 /* Графическая рамка панели, если добавлен ассет. */
+body.has-ui-panel-frame .final-inner {
+  background: rgba(8, 10, 15, 0.72);
+}
+
 body.has-ui-panel-frame .result-card,
 body.has-ui-panel-frame .final-inner,
 body.has-ui-panel-frame .modal {
-  border-image: var(--ui-panel-frame) var(--ui-panel-frame-slice) fill stretch;
-  border-width: calc(var(--ui-panel-frame-slice) * 1px);
+  /* round вместо stretch: бумажные накладки на бортах повторяются,
+     а не растягиваются в полосы. */
+  border-image: var(--ui-panel-frame) var(--ui-panel-frame-slice) fill round;
+  border-width: var(--ui-panel-border);
   border-style: solid;
   border-radius: 0;
+  background: rgba(10, 13, 19, 0.88);
+}
+
+/* Уголки-засечки дублировали бы углы рамки. */
+body.has-ui-panel-frame .tick {
+  display: none;
 }
 
 /* ---------- HUD: разделители и акценты ---------- */

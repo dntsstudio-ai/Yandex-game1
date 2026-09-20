@@ -14,6 +14,8 @@ export const MEDIA = {
   backdrop: 'media/textures/backdrop.webp',
   /** Фон главного меню (здание компании). */
   menuBackdrop: 'media/menu/headquarters.webp',
+  /** Фон итогового экрана (кабинет ночью). */
+  finalBackdrop: 'media/menu/office-night.webp',
 
   /** Логотип игры вместо нарисованного кодом флага. */
   logo: 'media/ui/logo.webp',

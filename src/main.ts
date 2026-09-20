@@ -17,6 +17,7 @@ void (async () => {
   const textures: Array<[keyof typeof MEDIA, string]> = [
     ['paperTexture', '--paper-image'],
     ['backdrop', '--backdrop-image'],
+    ['finalBackdrop', '--final-image'],
   ];
 
   const frames: Array<[keyof typeof MEDIA, string, string]> = [

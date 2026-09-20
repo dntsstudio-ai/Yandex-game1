@@ -81,9 +81,24 @@ body.is-fit .doc-fields {
   gap: 5px;
 }
 
+/* Рамка-ассет съедает место: в уменьшенном режиме делаем её тоньше,
+   иначе итоговый экран перестаёт помещаться целиком. */
+body.is-fit {
+  --ui-panel-border: 22px;
+}
+
 body.is-fit .result-card {
   gap: 12px;
   padding: 18px 20px;
+}
+
+body.is-fit .final-inner {
+  gap: 10px;
+  padding: 16px 20px;
+}
+
+body.is-fit .purity {
+  width: clamp(130px, 22vw, 160px);
 }
 
 body.is-fit .result-explanation {

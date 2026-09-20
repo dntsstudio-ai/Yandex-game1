@@ -372,6 +372,8 @@
 .screen--final {
   justify-content: safe center;
   padding: 8px 0;
+  /* Карточка уже остальных экранов: так по сторонам виден кабинет. */
+  width: min(780px, 100%);
 }
 
 .final-inner {

@@ -50,4 +50,5 @@
   /* Необязательные изображения: подставляются, если добавлены в public/media */
   --paper-image: none;
   --backdrop-image: none;
+  --final-image: none;
 }
