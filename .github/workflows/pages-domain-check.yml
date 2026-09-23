@@ -1,0 +1,32 @@
+# Диагностика: показывает, что сам GitHub думает о настройках Pages.
+# Изнутри контейнера этот путь API закрыт прокси, поэтому спрашиваем с раннера.
+# Только чтение — ничего не меняет.
+name: Pages domain check
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/upbeat-mayer-x9s57t
+    paths:
+      - '.github/workflows/pages-domain-check.yml'
+
+permissions:
+  contents: read
+  pages: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Состояние Pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api "repos/${{ github.repository }}/pages" | jq .
+
+      - name: Что отдаёт сайт
+        run: |
+          echo '--- https://forvide.ru'
+          curl -sS -o /dev/null -D- --max-time 20 https://forvide.ru/ || true
+          echo '--- http://forvide.ru'
+          curl -sS -o /dev/null -D- --max-time 20 http://forvide.ru/ || true
