@@ -14,9 +14,12 @@ on:
     paths:
       - '.github/workflows/pages-domain-check.yml'
 
+# pages: write нужен только для чтения: эндпоинт проверки домена
+# закрыт для read-токена. Ни одного изменяющего запроса ниже нет —
+# только GET.
 permissions:
   contents: read
-  pages: read
+  pages: write
 
 jobs:
   check:
@@ -29,11 +32,43 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh api "repos/${{ github.repository }}/pages" | jq .
 
+      - name: Проверка домена глазами GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Здесь лежит причина, по которой проверка не завершается:
+          # reason, https_error, is_https_eligible, caa_error.
+          gh api "repos/${{ github.repository }}/pages/health" > health.json \
+            || { echo 'эндпоинт недоступен для этого токена'; exit 0; }
+          jq . health.json
+          echo '--- главное ---'
+          jq -r '
+            "сообщение: \(.health_check_message // "—")",
+            "домен      : \(.domain.host // "—")",
+            "  разрешается     : \(.domain.dns_resolves)",
+            "  смотрит на Pages: \(.domain.is_pointed_to_github_pages_ip)",
+            "  обслуживается   : \(.domain.is_served_by_pages)",
+            "  валиден         : \(.domain.is_valid)",
+            "  причина         : \(.domain.reason // "—")",
+            "  чужой IP        : \(.domain.is_non_github_pages_ip_present)",
+            "  за прокси       : \(.domain.is_proxied)",
+            "  право на HTTPS  : \(.domain.is_https_eligible)",
+            "  ошибка HTTPS    : \(.domain.https_error // "—")",
+            "  ошибка CAA      : \(.domain.caa_error // "—")",
+            "www        : \(.alt_domain.host // "—")",
+            "  валиден         : \(.alt_domain.is_valid)",
+            "  причина         : \(.alt_domain.reason // "—")",
+            "  право на HTTPS  : \(.alt_domain.is_https_eligible)",
+            "  ошибка HTTPS    : \(.alt_domain.https_error // "—")"
+          ' health.json
+
       - name: Установка dig
         run: sudo apt-get update -qq && sudo apt-get install -y -qq dnsutils
 
       - name: Делегирование зоны
         run: |
+          echo '--- есть ли в зоне запись-заглушка на все поддомены'
+          dig +short A "probe-$(date +%s).$DOMAIN" || true
           echo '--- кому делегирован домен (ответ серверов зоны .ru)'
           dig +norecurse +noall +authority +additional NS "$DOMAIN" @a.dns.ripn.net || true
           echo '--- DS (DNSSEC)'
