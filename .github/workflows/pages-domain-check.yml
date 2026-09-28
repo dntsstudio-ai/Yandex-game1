@@ -80,7 +80,23 @@ jobs:
 
       - name: Прозрачность сертификатов
         run: |
-          # Если заказ хоть раз доходил до центра сертификации, он виден здесь.
-          curl -sS --max-time 30 "https://crt.sh/?q=$DOMAIN&output=json" \
-            | jq -r '.[] | "\(.not_before)  \(.issuer_name)  \(.common_name)"' 2>/dev/null \
-            | head -20 || echo 'crt.sh не ответил или записей нет'
+          # Если заказ хоть раз доходил до центра сертификации, он виден здесь:
+          # важны имена в сертификате и кто его выпустил.
+          curl -sS --max-time 40 "https://crt.sh/?q=$DOMAIN&output=json" > ct.json || true
+          echo "записей: $(jq 'length' ct.json 2>/dev/null || echo '?')"
+          jq -r 'sort_by(.not_before) | reverse | .[] | "\(.not_before) .. \(.not_after)  выпустил: \(.issuer_name)  имена: \(.name_value | gsub("\n"; ", "))"' \
+            ct.json 2>/dev/null | head -20 || echo 'разобрать не удалось'
+
+      - name: Доступность по IPv6
+        run: |
+          # Центр сертификации предпочитает IPv6, когда есть записи AAAA.
+          # Если по нему сайт недоступен, проверка не проходит, а браузеры
+          # этого не замечают: они откатываются на IPv4.
+          echo '--- есть ли IPv6 у самого раннера'
+          curl -6 -sS -o /dev/null -w 'ipv6 наружу: %{http_code}\n' --max-time 15 \
+            https://api.github.com/ 2>&1 | tail -1 || echo 'IPv6 на раннере недоступен — проверка ниже ничего не докажет'
+          for host in "$DOMAIN" "www.$DOMAIN"; do
+            echo "--- $host по IPv6"
+            curl -6 -sS -o /dev/null -w 'код %{http_code}, адрес %{remote_ip}\n' --max-time 20 \
+              "http://$host/.well-known/acme-challenge/probe" 2>&1 | tail -1 || true
+          done
