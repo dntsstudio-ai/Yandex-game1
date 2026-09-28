@@ -361,14 +361,16 @@ export class App {
         sfx.play(correct ? 'good' : 'bad');
         this.engine.decide(decision);
       },
-      onSelect: (decision) => {
-        if (decision) sfx.play('click');
+      onSelect: () => {
+        // Нажатие на «пропустить»/«остановить» должно звучать как решение,
+        // даже если засчитают его через десять секунд: без отклика кнопка
+        // кажется неработающей.
+        sfx.play('stamp');
       },
       onConfirmStart: () => {
         // Десять секунд на «передумать» не должны съедать время документа.
         this.confirmHolding = true;
         this.engine.pause();
-        sfx.play('stamp');
       },
       onConfirmCancel: () => {
         if (!this.confirmHolding) return;

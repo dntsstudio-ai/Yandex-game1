@@ -45,8 +45,8 @@ export interface GameScreenHandlers {
   onHint: () => string | null;
   /** Переключение увеличения документа — нужно для звука. */
   onZoom: (zoomed: boolean) => void;
-  /** Выбран (или снят) вариант ответа в режиме для зрелых. */
-  onSelect?: (decision: Decision | null) => void;
+  /** Выбран вариант ответа в режиме для зрелых — с него же идёт отсчёт. */
+  onSelect?: (decision: Decision) => void;
   /** Начался отсчёт подтверждения: время документа замирает. */
   onConfirmStart?: () => void;
   /** Отсчёт отменён кнопкой «изменить». */
@@ -130,13 +130,20 @@ export function renderGameScreen(
         ${
           mature
             ? `<div class="confirm" data-confirm>
-                 <p class="confirm-line" data-confirm-line>Выберите решение по документу.</p>
+                 <p class="confirm-line" data-confirm-line>
+                   Выберите решение — после выбора будет ещё ${CONFIRM_MS / 1000} секунд, чтобы передумать.
+                 </p>
                  <span class="confirm-track" aria-hidden="true">
                    <span class="confirm-fill" data-confirm-fill></span>
                  </span>
-                 <button type="button" class="btn btn--confirm" data-action="confirm" disabled>
-                   ПОДТВЕРДИТЬ
-                 </button>
+                 <div class="confirm-buttons">
+                   <button type="button" class="btn btn--confirm" data-action="commit" disabled>
+                     ПОДТВЕРДИТЬ
+                   </button>
+                   <button type="button" class="btn btn--change" data-action="change" disabled>
+                     ИЗМЕНИТЬ
+                   </button>
+                 </div>
                </div>`
             : ''
         }
@@ -150,7 +157,9 @@ export function renderGameScreen(
 
   // ---------- решение по документу ----------
   // В режиме для молодых кнопка сразу закрывает документ. В режиме для
-  // зрелых она лишь выбирает вариант: зачёт происходит после отсчёта.
+  // зрелых сам выбор запускает отсчёт: документ замирает, и до конца
+  // отсчёта ответ можно отменить кнопкой «изменить» или засчитать
+  // досрочно кнопкой «подтвердить».
   let locked = false;
   let selected: Decision | null = null;
   let confirmFrame = 0;
@@ -160,9 +169,12 @@ export function renderGameScreen(
 
   const decisionButtons = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-decision]'));
   const confirmBox = root.querySelector<HTMLElement>('[data-confirm]');
-  const confirmButton = root.querySelector<HTMLButtonElement>('[data-action="confirm"]');
+  const commitButton = root.querySelector<HTMLButtonElement>('[data-action="commit"]');
+  const changeButton = root.querySelector<HTMLButtonElement>('[data-action="change"]');
   const confirmLineEl = root.querySelector<HTMLElement>('[data-confirm-line]');
   const confirmFill = root.querySelector<HTMLElement>('[data-confirm-fill]');
+
+  const IDLE_LINE = `Выберите решение — после выбора будет ещё ${CONFIRM_MS / 1000} секунд, чтобы передумать.`;
 
   docNode.addEventListener('click', (event) => {
     if (locked) return;
@@ -171,40 +183,11 @@ export function renderGameScreen(
     handlers.onHotspot(target.dataset.hotspot ?? '', target);
   });
 
-  const select = (decision: Decision) => {
-    // Повторное нажатие по выбранному варианту снимает выбор: иначе
-    // передумать «ничего не выбирать» было бы нельзя.
-    selected = selected === decision ? null : decision;
-    for (const button of decisionButtons) {
-      const own = button.dataset.decision === 'stop' ? 'stop' : 'pass';
-      button.setAttribute('aria-pressed', String(own === selected));
-      button.classList.toggle('is-picked', own === selected);
-    }
-    if (confirmButton) confirmButton.disabled = selected === null;
-    if (confirmLineEl) {
-      confirmLineEl.textContent =
-        selected === null
-          ? 'Выберите решение по документу.'
-          : selected === 'stop'
-            ? 'Выбрано: остановить. Нажмите «подтвердить».'
-            : 'Выбрано: пропустить. Нажмите «подтвердить».';
-    }
-    handlers.onSelect?.(selected);
-  };
-
-  for (const button of decisionButtons) {
-    button.addEventListener('click', () => {
-      const decision: Decision = button.dataset.decision === 'stop' ? 'stop' : 'pass';
-      if (!mature) {
-        handlers.onDecision(decision);
-        return;
-      }
-      if (locked) return;
-      select(decision);
-    });
-  }
-
-  /** Нажатие принято? Пока не истёк интервал защиты — нет. */
+  /**
+   * Нажатие принято? Пока не истёк интервал защиты — нет.
+   * Счётчик общий на все кнопки решения: двойной клик по одной из них
+   * не должен попадать по соседней, вставшей на её место.
+   */
   const guardPassed = (): boolean => {
     const now = performance.now();
     if (now - lastGuardAt < CLICK_GUARD_MS) return false;
@@ -223,21 +206,29 @@ export function renderGameScreen(
   const cancelConfirm = () => {
     stopCountdown();
     locked = false;
+    selected = null;
     root.classList.remove('is-locked');
     confirmBox?.classList.remove('is-counting');
-    for (const button of decisionButtons) button.disabled = false;
-    if (confirmButton) {
-      confirmButton.textContent = 'ПОДТВЕРДИТЬ';
-      confirmButton.classList.remove('btn--change');
-      confirmButton.disabled = selected === null;
+    for (const button of decisionButtons) {
+      button.disabled = false;
+      button.setAttribute('aria-pressed', 'false');
+      button.classList.remove('is-picked');
     }
-    if (confirmLineEl && selected) {
-      confirmLineEl.textContent =
-        selected === 'stop'
-          ? 'Выбрано: остановить. Нажмите «подтвердить».'
-          : 'Выбрано: пропустить. Нажмите «подтвердить».';
-    }
+    if (commitButton) commitButton.disabled = true;
+    if (changeButton) changeButton.disabled = true;
+    if (confirmLineEl) confirmLineEl.textContent = IDLE_LINE;
     handlers.onConfirmCancel?.();
+  };
+
+  /** Ответ зафиксирован: досрочно или по истечении отсчёта. */
+  const commit = () => {
+    if (!selected) return;
+    stopCountdown();
+    const decision = selected;
+    if (confirmLineEl) confirmLineEl.textContent = 'Ответ засчитан.';
+    if (commitButton) commitButton.disabled = true;
+    if (changeButton) changeButton.disabled = true;
+    handlers.onDecision(decision);
   };
 
   const tickConfirm = () => {
@@ -251,34 +242,55 @@ export function renderGameScreen(
     }
 
     if (left <= 0) {
-      stopCountdown();
-      const decision = selected;
-      if (decision) handlers.onDecision(decision);
+      commit();
       return;
     }
     confirmFrame = requestAnimationFrame(tickConfirm);
   };
 
-  const startConfirm = () => {
-    if (!selected) return;
+  /** Выбор варианта: он же запускает отсчёт. */
+  const select = (decision: Decision) => {
+    selected = decision;
     locked = true;
     root.classList.add('is-locked');
     confirmBox?.classList.add('is-counting');
-    for (const button of decisionButtons) button.disabled = true;
-    if (confirmButton) {
-      confirmButton.textContent = 'ИЗМЕНИТЬ';
-      confirmButton.classList.add('btn--change');
+
+    for (const button of decisionButtons) {
+      const own = button.dataset.decision === 'stop' ? 'stop' : 'pass';
+      button.setAttribute('aria-pressed', String(own === decision));
+      button.classList.toggle('is-picked', own === decision);
+      button.disabled = true;
     }
+    if (commitButton) commitButton.disabled = false;
+    if (changeButton) changeButton.disabled = false;
+
     confirmEndsAt = performance.now() + CONFIRM_MS;
     lastSecondShown = -1;
+    handlers.onSelect?.(decision);
     handlers.onConfirmStart?.();
     confirmFrame = requestAnimationFrame(tickConfirm);
   };
 
-  confirmButton?.addEventListener('click', () => {
-    if (!guardPassed()) return;
-    if (locked) cancelConfirm();
-    else startConfirm();
+  for (const button of decisionButtons) {
+    button.addEventListener('click', () => {
+      const decision: Decision = button.dataset.decision === 'stop' ? 'stop' : 'pass';
+      if (!mature) {
+        handlers.onDecision(decision);
+        return;
+      }
+      if (locked || !guardPassed()) return;
+      select(decision);
+    });
+  }
+
+  commitButton?.addEventListener('click', () => {
+    if (!locked || !guardPassed()) return;
+    commit();
+  });
+
+  changeButton?.addEventListener('click', () => {
+    if (!locked || !guardPassed()) return;
+    cancelConfirm();
   });
 
   root.querySelector('[data-action="settings"]')?.addEventListener('click', handlers.onSettings);

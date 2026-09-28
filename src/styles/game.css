@@ -260,6 +260,20 @@ body.has-ui-case-tab .case-state {
    Кнопки решения здесь не закрывают документ, а выбирают вариант,
    поэтому выбранная подсвечивается, а рядом появляется полоса
    подтверждения с отсчётом. */
+/* Во время отсчёта кнопки решения заблокированы, и это должно быть
+   видно: иначе игрок жмёт по ним и думает, что игра зависла. */
+.screen--mature .btn--pass:disabled,
+.screen--mature .btn--stop:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Кроме выбранной: она, наоборот, должна выделяться. */
+.screen--mature .btn--pass.is-picked:disabled,
+.screen--mature .btn--stop.is-picked:disabled {
+  opacity: 1;
+}
+
 .screen--mature .btn--pass.is-picked,
 .screen--mature .btn--stop.is-picked {
   box-shadow: inset 0 0 0 2px currentColor;
@@ -294,7 +308,14 @@ body.has-ui-case-tab .case-state {
   min-height: 1.35em;
 }
 
-/* Полоса отсчёта появляется только вместе с ним: в режиме выбора
+.confirm-buttons {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  gap: 8px;
+}
+
+/* Полоса отсчёта появляется только вместе с ним: до выбора
    пустой жёлоб выглядел как сломанный таймер. */
 .confirm-track {
   grid-column: 1 / -1;
@@ -320,10 +341,9 @@ body.has-ui-case-tab .case-state {
   transform-origin: left center;
 }
 
-.btn--confirm {
-  grid-column: 2;
-  grid-row: 1;
-  padding: 10px 22px;
+.btn--confirm,
+.btn--change {
+  padding: 10px 20px;
   font-size: 0.72rem;
   letter-spacing: 0.14em;
   background: linear-gradient(180deg, rgba(90, 160, 255, 0.22), rgba(90, 160, 255, 0.1));
@@ -331,15 +351,18 @@ body.has-ui-case-tab .case-state {
   color: #bfd8ff;
 }
 
-.btn--confirm:disabled {
-  opacity: 0.45;
+.btn--confirm:disabled,
+.btn--change:disabled {
+  opacity: 0.4;
   cursor: default;
 }
 
-.btn--confirm.btn--change {
+.btn--change {
   background: linear-gradient(180deg, rgba(240, 182, 74, 0.24), rgba(240, 182, 74, 0.1));
-  border-color: rgba(240, 182, 74, 0.5);
+  border: 1px solid rgba(240, 182, 74, 0.5);
   color: #ffd79a;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
 }
 
 .confirm.is-counting .confirm-line {
