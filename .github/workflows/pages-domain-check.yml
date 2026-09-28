@@ -1,6 +1,9 @@
-# Диагностика: показывает, что сам GitHub думает о настройках Pages.
-# Изнутри контейнера этот путь API закрыт прокси, поэтому спрашиваем с раннера.
-# Только чтение — ничего не меняет.
+# Диагностика: показывает, что сам GitHub думает о настройках Pages,
+# и как домен выглядит из настоящей сети.
+#
+# Изнутри контейнера разработки этого не проверить: путь API закрыт прокси,
+# а DNS-запросы перехватывает локальный резолвер — авторитетные ответы
+# до него не доходят. Только чтение, ничего не меняет.
 name: Pages domain check
 
 on:
@@ -18,15 +21,66 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      DOMAIN: forvide.ru
     steps:
       - name: Состояние Pages
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh api "repos/${{ github.repository }}/pages" | jq .
 
+      - name: Установка dig
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq dnsutils
+
+      - name: Делегирование зоны
+        run: |
+          echo '--- кому делегирован домен (ответ серверов зоны .ru)'
+          dig +norecurse +noall +authority +additional NS "$DOMAIN" @a.dns.ripn.net || true
+          echo '--- DS (DNSSEC)'
+          dig +short DS "$DOMAIN" @a.dns.ripn.net || true
+
+      - name: Авторитетные ответы
+        run: |
+          for ns in ns1.reg.ru ns2.reg.ru; do
+            echo "=== $ns ==="
+            echo '--- SOA (флаг aa должен быть в строке ;; flags:)'
+            dig +norecurse SOA "$DOMAIN" @"$ns" | sed -n '/flags:/p;/ANSWER SECTION/,/^$/p'
+            echo '--- A'
+            dig +norecurse +short A "$DOMAIN" @"$ns"
+            echo '--- AAAA'
+            dig +norecurse +short AAAA "$DOMAIN" @"$ns"
+            echo '--- www'
+            dig +norecurse +short A "www.$DOMAIN" @"$ns"
+            echo '--- CAA'
+            dig +norecurse +short CAA "$DOMAIN" @"$ns"
+          done
+
       - name: Что отдаёт сайт
         run: |
-          echo '--- https://forvide.ru'
-          curl -sS -o /dev/null -D- --max-time 20 https://forvide.ru/ || true
-          echo '--- http://forvide.ru'
-          curl -sS -o /dev/null -D- --max-time 20 http://forvide.ru/ || true
+          for host in "$DOMAIN" "www.$DOMAIN"; do
+            echo "=== http://$host ==="
+            curl -sS -o /dev/null -D- --max-time 20 "http://$host/" || true
+            echo "=== путь проверки сертификата на $host ==="
+            # Let's Encrypt забирает файл именно отсюда: важен не ответ,
+            # а то, что путь обслуживает GitHub, а не что-то постороннее.
+            curl -sS -o /dev/null -w 'код %{http_code}, сервер: ' --max-time 20 \
+              "http://$host/.well-known/acme-challenge/probe" || true
+            curl -sS -o /dev/null -D- --max-time 20 \
+              "http://$host/.well-known/acme-challenge/probe" 2>/dev/null | grep -i '^server:' || echo '(без заголовка)'
+          done
+
+      - name: Сертификат
+        run: |
+          for host in "$DOMAIN" "www.$DOMAIN"; do
+            echo "=== $host ==="
+            echo | openssl s_client -connect "$host:443" -servername "$host" 2>/dev/null \
+              | openssl x509 -noout -subject -issuer -dates -ext subjectAltName 2>/dev/null \
+              || echo 'сертификат не получен'
+          done
+
+      - name: Прозрачность сертификатов
+        run: |
+          # Если заказ хоть раз доходил до центра сертификации, он виден здесь.
+          curl -sS --max-time 30 "https://crt.sh/?q=$DOMAIN&output=json" \
+            | jq -r '.[] | "\(.not_before)  \(.issuer_name)  \(.common_name)"' 2>/dev/null \
+            | head -20 || echo 'crt.sh не ответил или записей нет'
