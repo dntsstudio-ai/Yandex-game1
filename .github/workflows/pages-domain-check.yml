@@ -1,5 +1,4 @@
-# Диагностика: показывает, что сам GitHub думает о настройках Pages,
-# и как домен выглядит из настоящей сети.
+# Диагностика кастомного домена с раннера GitHub.
 #
 # Изнутри контейнера разработки этого не проверить: путь API закрыт прокси,
 # а DNS-запросы перехватывает локальный резолвер — авторитетные ответы
@@ -14,139 +13,55 @@ on:
     paths:
       - '.github/workflows/pages-domain-check.yml'
 
-# pages: write нужен только для чтения: эндпоинт проверки домена
-# закрыт для read-токена. Ни одного изменяющего запроса ниже нет —
-# только GET.
 permissions:
   contents: read
-  pages: write
+  pages: read
 
 jobs:
   check:
     runs-on: ubuntu-latest
     env:
       DOMAIN: forvide.ru
+      OWNER: dntsstudio-ai
     steps:
       - name: Состояние Pages
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh api "repos/${{ github.repository }}/pages" | jq .
 
-      - name: Проверка домена глазами GitHub
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Записи домена
         run: |
-          # Здесь лежит причина, по которой проверка не завершается:
-          # reason, https_error, is_https_eligible, caa_error.
-          gh api "repos/${{ github.repository }}/pages/health" > health.json \
-            || { echo 'эндпоинт недоступен для этого токена'; exit 0; }
-          jq . health.json
-          echo '--- главное ---'
-          jq -r '
-            "сообщение: \(.health_check_message // "—")",
-            "домен      : \(.domain.host // "—")",
-            "  разрешается     : \(.domain.dns_resolves)",
-            "  смотрит на Pages: \(.domain.is_pointed_to_github_pages_ip)",
-            "  обслуживается   : \(.domain.is_served_by_pages)",
-            "  валиден         : \(.domain.is_valid)",
-            "  причина         : \(.domain.reason // "—")",
-            "  чужой IP        : \(.domain.is_non_github_pages_ip_present)",
-            "  за прокси       : \(.domain.is_proxied)",
-            "  право на HTTPS  : \(.domain.is_https_eligible)",
-            "  ошибка HTTPS    : \(.domain.https_error // "—")",
-            "  ошибка CAA      : \(.domain.caa_error // "—")",
-            "www        : \(.alt_domain.host // "—")",
-            "  валиден         : \(.alt_domain.is_valid)",
-            "  причина         : \(.alt_domain.reason // "—")",
-            "  право на HTTPS  : \(.alt_domain.is_https_eligible)",
-            "  ошибка HTTPS    : \(.alt_domain.https_error // "—")"
-          ' health.json
-
-      - name: Не держит ли домен другой репозиторий
-        run: |
-          # Если у репозитория задан кастомный домен, GitHub перенаправляет
-          # его адрес вида user.github.io/repo на этот домен. Так можно
-          # узнать чужую привязку, не имея доступа к настройкам репозитория.
-          for repo in ForVideTest1 Yandex-game1; do
-            echo "=== $repo ==="
-            curl -sS -o /dev/null -D- --max-time 20 \
-              "https://dntsstudio-ai.github.io/$repo/" 2>/dev/null \
-              | grep -iE '^(HTTP/|location:|server:)' || echo 'нет ответа'
-          done
-          echo '=== корень dntsstudio-ai.github.io ==='
-          curl -sS -o /dev/null -D- --max-time 20 "https://dntsstudio-ai.github.io/" 2>/dev/null \
-            | grep -iE '^(HTTP/|location:)' || echo 'нет ответа'
-
-      - name: Установка dig
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq dnsutils
-
-      - name: Делегирование зоны
-        run: |
-          echo '--- есть ли в зоне запись-заглушка на все поддомены'
-          dig +short A "probe-$(date +%s).$DOMAIN" || true
-          echo '--- кому делегирован домен (ответ серверов зоны .ru)'
-          dig +norecurse +noall +authority +additional NS "$DOMAIN" @a.dns.ripn.net || true
-          echo '--- DS (DNSSEC)'
-          dig +short DS "$DOMAIN" @a.dns.ripn.net || true
-
-      - name: Авторитетные ответы
-        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq dnsutils
           for ns in ns1.reg.ru ns2.reg.ru; do
             echo "=== $ns ==="
-            echo '--- SOA (флаг aa должен быть в строке ;; flags:)'
-            dig +norecurse SOA "$DOMAIN" @"$ns" | sed -n '/flags:/p;/ANSWER SECTION/,/^$/p'
-            echo '--- A'
-            dig +norecurse +short A "$DOMAIN" @"$ns"
-            echo '--- AAAA'
-            dig +norecurse +short AAAA "$DOMAIN" @"$ns"
-            echo '--- www'
-            dig +norecurse +short A "www.$DOMAIN" @"$ns"
-            echo '--- CAA'
-            dig +norecurse +short CAA "$DOMAIN" @"$ns"
+            dig +norecurse SOA "$DOMAIN" @"$ns" | sed -n '/flags:/p'
+            echo "A:    $(dig +norecurse +short A "$DOMAIN" @"$ns" | tr '\n' ' ')"
+            echo "AAAA: $(dig +norecurse +short AAAA "$DOMAIN" @"$ns" | tr '\n' ' ')"
+            echo "www:  $(dig +norecurse +short A "www.$DOMAIN" @"$ns" | tr '\n' ' ')"
+            echo "CAA:  $(dig +norecurse +short CAA "$DOMAIN" @"$ns" | tr '\n' ' ')"
           done
 
-      - name: Что отдаёт сайт
+      - name: Сертификат на домене
         run: |
-          for host in "$DOMAIN" "www.$DOMAIN"; do
-            echo "=== http://$host ==="
-            curl -sS -o /dev/null -D- --max-time 20 "http://$host/" || true
-            echo "=== путь проверки сертификата на $host ==="
-            # Let's Encrypt забирает файл именно отсюда: важен не ответ,
-            # а то, что путь обслуживает GitHub, а не что-то постороннее.
-            curl -sS -o /dev/null -w 'код %{http_code}, сервер: ' --max-time 20 \
-              "http://$host/.well-known/acme-challenge/probe" || true
-            curl -sS -o /dev/null -D- --max-time 20 \
-              "http://$host/.well-known/acme-challenge/probe" 2>/dev/null | grep -i '^server:' || echo '(без заголовка)'
-          done
+          echo | openssl s_client -connect "$DOMAIN:443" -servername "$DOMAIN" 2>/dev/null \
+            | openssl x509 -noout -subject -dates 2>/dev/null \
+            || echo 'сертификат не получен'
 
-      - name: Сертификат
+      # Главный вопрос. Если у репозитория задан кастомный домен, GitHub
+      # перенаправляет его адрес вида owner.github.io/repo на этот домен.
+      # Так видно чужую привязку, не имея доступа к настройкам того
+      # репозитория: второй репозиторий с тем же доменом — известная
+      # причина, по которой проверка DNS висит, а сертификат не заказывается.
+      - name: Не держит ли домен другой репозиторий
         run: |
-          for host in "$DOMAIN" "www.$DOMAIN"; do
-            echo "=== $host ==="
-            echo | openssl s_client -connect "$host:443" -servername "$host" 2>/dev/null \
-              | openssl x509 -noout -subject -issuer -dates -ext subjectAltName 2>/dev/null \
-              || echo 'сертификат не получен'
+          for repo in ForVideTest1 Yandex-game1 gre32 JiluQwer JISr3 \
+                      Lnyxtdrse-Donq renascendyvoice SoundWaveStudio.dub; do
+            out=$(curl -sS -o /dev/null -D- --max-time 20 \
+              "https://$OWNER.github.io/$repo/" 2>/dev/null || true)
+            code=$(printf '%s' "$out" | sed -n '1s/.* \([0-9]\{3\}\) .*/\1/p')
+            loc=$(printf '%s' "$out" | grep -i '^location:' | tr -d '\r' || true)
+            printf '%-24s %s  %s\n' "$repo" "${code:-нет}" "${loc:-без перенаправления}"
           done
-
-      - name: Прозрачность сертификатов
-        run: |
-          # Если заказ хоть раз доходил до центра сертификации, он виден здесь:
-          # важны имена в сертификате и кто его выпустил.
-          curl -sS --max-time 40 "https://crt.sh/?q=$DOMAIN&output=json" > ct.json || true
-          echo "записей: $(jq 'length' ct.json 2>/dev/null || echo '?')"
-          jq -r 'sort_by(.not_before) | reverse | .[] | "\(.not_before) .. \(.not_after)  выпустил: \(.issuer_name)  имена: \(.name_value | gsub("\n"; ", "))"' \
-            ct.json 2>/dev/null | head -20 || echo 'разобрать не удалось'
-
-      - name: Доступность по IPv6
-        run: |
-          # Центр сертификации предпочитает IPv6, когда есть записи AAAA.
-          # Если по нему сайт недоступен, проверка не проходит, а браузеры
-          # этого не замечают: они откатываются на IPv4.
-          echo '--- есть ли IPv6 у самого раннера'
-          curl -6 -sS -o /dev/null -w 'ipv6 наружу: %{http_code}\n' --max-time 15 \
-            https://api.github.com/ 2>&1 | tail -1 || echo 'IPv6 на раннере недоступен — проверка ниже ничего не докажет'
-          for host in "$DOMAIN" "www.$DOMAIN"; do
-            echo "--- $host по IPv6"
-            curl -6 -sS -o /dev/null -w 'код %{http_code}, адрес %{remote_ip}\n' --max-time 20 \
-              "http://$host/.well-known/acme-challenge/probe" 2>&1 | tail -1 || true
-          done
+          echo "--- корень $OWNER.github.io ---"
+          curl -sS -o /dev/null -D- --max-time 20 "https://$OWNER.github.io/" 2>/dev/null \
+            | grep -iE '^(HTTP/|location:)' | tr -d '\r' || echo 'нет ответа'
