@@ -62,6 +62,21 @@ jobs:
             "  ошибка HTTPS    : \(.alt_domain.https_error // "—")"
           ' health.json
 
+      - name: Не держит ли домен другой репозиторий
+        run: |
+          # Если у репозитория задан кастомный домен, GitHub перенаправляет
+          # его адрес вида user.github.io/repo на этот домен. Так можно
+          # узнать чужую привязку, не имея доступа к настройкам репозитория.
+          for repo in ForVideTest1 Yandex-game1; do
+            echo "=== $repo ==="
+            curl -sS -o /dev/null -D- --max-time 20 \
+              "https://dntsstudio-ai.github.io/$repo/" 2>/dev/null \
+              | grep -iE '^(HTTP/|location:|server:)' || echo 'нет ответа'
+          done
+          echo '=== корень dntsstudio-ai.github.io ==='
+          curl -sS -o /dev/null -D- --max-time 20 "https://dntsstudio-ai.github.io/" 2>/dev/null \
+            | grep -iE '^(HTTP/|location:)' || echo 'нет ответа'
+
       - name: Установка dig
         run: sudo apt-get update -qq && sudo apt-get install -y -qq dnsutils
 
