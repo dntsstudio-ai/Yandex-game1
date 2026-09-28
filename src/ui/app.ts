@@ -18,7 +18,7 @@ import { createNetGuard, type NetGuard } from './netGuard';
 import { renderAbout } from './screens/about';
 import { renderVerdict } from './screens/verdict';
 import { renderFinalScreen, type FinalScreen } from './screens/final';
-import { renderGameScreen, type GameScreen } from './screens/game';
+import { CONFIRM_MS, renderGameScreen, type GameScreen } from './screens/game';
 import { renderMistakes } from './screens/mistakes';
 import { renderRoundResult } from './screens/roundResult';
 import { renderSettings } from './screens/settings';
@@ -51,8 +51,6 @@ export class App {
   private netHolding = false;
   /** Озвучку остановила потеря связи — её же и возобновляем. */
   private voiceHeld = false;
-  /** Идёт отсчёт подтверждения в режиме для зрелых: время документа стоит. */
-  private confirmHolding = false;
 
   constructor(host: HTMLElement, engine = new GameEngine()) {
     // Сцена фиксированного размера: в альбомном режиме телефона она
@@ -121,6 +119,9 @@ export class App {
     const deck = pickDeck(scenarioPool, { seen: readSeen() });
     this.engine.deal(deck);
     rememberSeen(deck, scenarioPool.length);
+    // В режиме для зрелых у документа лимита нет: время появляется только
+    // как окно на «передумать» после выбора ответа.
+    this.engine.setTimed(settings.get().mode !== 'mature');
   }
 
   /**
@@ -212,12 +213,6 @@ export class App {
     if (state.phase !== 'playing' && this.gameScreen) {
       this.gameScreen.destroy();
       this.gameScreen = null;
-      // Экран мог уйти посреди отсчёта подтверждения — пауза снимается
-      // вместе с ним, иначе она осталась бы висеть на следующей партии.
-      if (this.confirmHolding) {
-        this.confirmHolding = false;
-        this.engine.resume();
-      }
     }
 
     switch (state.phase) {
@@ -350,32 +345,20 @@ export class App {
       },
       onZoom: () => sfx.play('paper'),
       onDecision: (decision: Decision) => {
-        // Отсчёт подтверждения держал время документа — снимаем паузу,
-        // иначе следующий документ начался бы с остановленным таймером.
-        if (this.confirmHolding) {
-          this.confirmHolding = false;
-          this.engine.resume();
-        }
         const correct = scenario.correctDecision === decision;
         sfx.play('stamp');
         sfx.play(correct ? 'good' : 'bad');
         this.engine.decide(decision);
       },
-      onSelect: () => {
-        // Нажатие на «пропустить»/«остановить» должно звучать как решение,
-        // даже если засчитают его через десять секунд: без отклика кнопка
-        // кажется неработающей.
+      onSelect: (decision) => {
+        // Выбор запускает окно на «передумать»: с этого момента у документа
+        // впервые появляется время, и ведёт его движок — счётчик в HUD
+        // и полоса в доке показывают один и тот же остаток.
         sfx.play('stamp');
-      },
-      onConfirmStart: () => {
-        // Десять секунд на «передумать» не должны съедать время документа.
-        this.confirmHolding = true;
-        this.engine.pause();
+        this.engine.armDecision(decision, CONFIRM_MS);
       },
       onConfirmCancel: () => {
-        if (!this.confirmHolding) return;
-        this.confirmHolding = false;
-        this.engine.resume();
+        this.engine.disarmDecision();
         sfx.play('paper');
       },
       onSettings: () => this.openSettings(),

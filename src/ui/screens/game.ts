@@ -75,8 +75,10 @@ export function renderGameScreen(
     <header class="hud">
       <div class="hud-stats">
         <div class="hud-item hud-item--time">
-          <span class="hud-label">${icon('time')}На документ</span>
-          <span class="hud-value" data-hud="time">1:30</span>
+          <span class="hud-label">${icon('time')}<b data-hud="time-label">${
+            mature ? 'На раздумье' : 'На документ'
+          }</b></span>
+          <span class="hud-value" data-hud="time">${mature ? '—' : '1:30'}</span>
         </div>
         <div class="hud-item">
           <span class="hud-label">${icon('score')}Очки</span>
@@ -157,13 +159,11 @@ export function renderGameScreen(
 
   // ---------- решение по документу ----------
   // В режиме для молодых кнопка сразу закрывает документ. В режиме для
-  // зрелых сам выбор запускает отсчёт: документ замирает, и до конца
-  // отсчёта ответ можно отменить кнопкой «изменить» или засчитать
-  // досрочно кнопкой «подтвердить».
+  // зрелых у документа лимита времени нет вовсе: время появляется только
+  // после выбора — это окно на «передумать». Ведёт его движок, экран лишь
+  // показывает остаток, поэтому второго таймера здесь нет.
   let locked = false;
   let selected: Decision | null = null;
-  let confirmFrame = 0;
-  let confirmEndsAt = 0;
   let lastGuardAt = 0;
   let lastSecondShown = -1;
 
@@ -174,7 +174,7 @@ export function renderGameScreen(
   const confirmLineEl = root.querySelector<HTMLElement>('[data-confirm-line]');
   const confirmFill = root.querySelector<HTMLElement>('[data-confirm-fill]');
 
-  const IDLE_LINE = `Выберите решение — после выбора будет ещё ${CONFIRM_MS / 1000} секунд, чтобы передумать.`;
+  const IDLE_LINE = `Времени на документ нет — читайте спокойно. После выбора будет ${CONFIRM_MS / 1000} секунд, чтобы передумать.`;
 
   docNode.addEventListener('click', (event) => {
     if (locked) return;
@@ -195,18 +195,11 @@ export function renderGameScreen(
     return true;
   };
 
-  const stopCountdown = () => {
-    if (confirmFrame) cancelAnimationFrame(confirmFrame);
-    confirmFrame = 0;
-    lastSecondShown = -1;
-    if (confirmFill) confirmFill.style.transform = 'scaleX(0)';
-  };
-
-  /** Возврат к выбору: отсчёт откатывается и останавливается. */
+  /** Возврат к выбору: окно закрывается, документ снова открыт. */
   const cancelConfirm = () => {
-    stopCountdown();
     locked = false;
     selected = null;
+    lastSecondShown = -1;
     root.classList.remove('is-locked');
     confirmBox?.classList.remove('is-counting');
     for (const button of decisionButtons) {
@@ -216,14 +209,14 @@ export function renderGameScreen(
     }
     if (commitButton) commitButton.disabled = true;
     if (changeButton) changeButton.disabled = true;
+    if (confirmFill) confirmFill.style.transform = 'scaleX(0)';
     if (confirmLineEl) confirmLineEl.textContent = IDLE_LINE;
     handlers.onConfirmCancel?.();
   };
 
-  /** Ответ зафиксирован: досрочно или по истечении отсчёта. */
+  /** Ответ зафиксирован досрочно, не дожидаясь конца окна. */
   const commit = () => {
     if (!selected) return;
-    stopCountdown();
     const decision = selected;
     if (confirmLineEl) confirmLineEl.textContent = 'Ответ засчитан.';
     if (commitButton) commitButton.disabled = true;
@@ -231,27 +224,11 @@ export function renderGameScreen(
     handlers.onDecision(decision);
   };
 
-  const tickConfirm = () => {
-    const left = Math.max(0, confirmEndsAt - performance.now());
-    if (confirmFill) confirmFill.style.transform = `scaleX(${(left / CONFIRM_MS).toFixed(4)})`;
-
-    const seconds = Math.ceil(left / 1000);
-    if (seconds !== lastSecondShown) {
-      lastSecondShown = seconds;
-      if (confirmLineEl) confirmLineEl.textContent = `${confirmLine(seconds)} · ${seconds}`;
-    }
-
-    if (left <= 0) {
-      commit();
-      return;
-    }
-    confirmFrame = requestAnimationFrame(tickConfirm);
-  };
-
-  /** Выбор варианта: он же запускает отсчёт. */
+  /** Выбор варианта: он же запускает окно на «передумать». */
   const select = (decision: Decision) => {
     selected = decision;
     locked = true;
+    lastSecondShown = -1;
     root.classList.add('is-locked');
     confirmBox?.classList.add('is-counting');
 
@@ -264,11 +241,7 @@ export function renderGameScreen(
     if (commitButton) commitButton.disabled = false;
     if (changeButton) changeButton.disabled = false;
 
-    confirmEndsAt = performance.now() + CONFIRM_MS;
-    lastSecondShown = -1;
     handlers.onSelect?.(decision);
-    handlers.onConfirmStart?.();
-    confirmFrame = requestAnimationFrame(tickConfirm);
   };
 
   for (const button of decisionButtons) {
@@ -338,6 +311,7 @@ export function renderGameScreen(
 
   const timeEl = root.querySelector<HTMLElement>('[data-hud="time"]');
   const timeBar = root.querySelector<HTMLElement>('[data-hud="timebar"]');
+  const timeLabelEl = root.querySelector<HTMLElement>('[data-hud="time-label"]');
   const scoreEl = root.querySelector<HTMLElement>('[data-hud="score"]');
   const indexEl = root.querySelector<HTMLElement>('[data-hud="index"]');
   const accuracyEl = root.querySelector<HTMLElement>('[data-hud="accuracy"]');
@@ -361,13 +335,22 @@ export function renderGameScreen(
   return {
     root,
     update(state, current, totalCount) {
-      const ratio = Math.max(0, state.timeLeftMs / Math.max(1, state.roundDurationMs));
-      const low = state.timeLeftMs <= 10_000;
+      // В режиме для зрелых счётчик показывает не лимит документа, которого
+      // нет, а остаток окна на «передумать» — и только пока оно идёт.
+      const counting = !mature || locked;
+      const ratio = counting
+        ? Math.max(0, state.timeLeftMs / Math.max(1, state.roundDurationMs))
+        : 1;
+      const low = counting && state.timeLeftMs <= (mature ? 4000 : 10_000);
 
-      const time = formatTime(state.timeLeftMs);
+      const time = counting ? formatTime(state.timeLeftMs) : '—';
       if (timeEl && time !== lastTime) {
         timeEl.textContent = time;
         lastTime = time;
+      }
+      if (timeLabelEl && mature) {
+        const label = locked ? 'На раздумье' : 'Без ограничения';
+        if (timeLabelEl.textContent !== label) timeLabelEl.textContent = label;
       }
       if (low !== lastLow) {
         timeEl?.classList.toggle('is-low', low);
@@ -376,6 +359,20 @@ export function renderGameScreen(
       }
       // шкала — это transform, он дёшев и обновляется каждый кадр
       if (timeBar) timeBar.style.transform = `scaleX(${ratio.toFixed(4)})`;
+      root.classList.toggle('is-untimed', mature && !locked);
+
+      // Полоса и подпись окна подтверждения питаются от того же остатка:
+      // второго отсчёта в экране нет, иначе они бы разъезжались.
+      if (locked) {
+        if (confirmFill) {
+          confirmFill.style.transform = `scaleX(${ratio.toFixed(4)})`;
+        }
+        const seconds = Math.ceil(state.timeLeftMs / 1000);
+        if (seconds !== lastSecondShown) {
+          lastSecondShown = seconds;
+          if (confirmLineEl) confirmLineEl.textContent = `${confirmLine(seconds)} · ${seconds}`;
+        }
+      }
 
       if (scoreEl && state.score !== lastScore) {
         scoreEl.textContent = String(state.score);
@@ -437,7 +434,6 @@ export function renderGameScreen(
     },
     destroy() {
       window.clearTimeout(streakTimer);
-      stopCountdown();
       window.removeEventListener('keydown', onKey);
     },
   };

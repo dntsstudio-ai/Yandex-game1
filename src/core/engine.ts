@@ -49,6 +49,14 @@ export class GameEngine {
   private scenarios: readonly Scenario[];
   /** Сколько раз игру попросили остановиться (пауза, окно, потеря связи). */
   private holds = 0;
+  /**
+   * Идёт ли время документа. В режиме для зрелых — нет: игрок читает
+   * столько, сколько нужно, а время появляется только как окно на
+   * «передумать» после выбора ответа.
+   */
+  private timed = true;
+  /** Выбранное, но ещё не зачтённое решение: по нулю времени зачтётся оно. */
+  private armed: Decision | null = null;
 
   constructor(scenarios: readonly Scenario[] = defaultScenarios) {
     if (scenarios.length === 0) throw new Error('Нужна хотя бы одна игровая ситуация');
@@ -91,6 +99,7 @@ export class GameEngine {
   /** Старт новой партии. */
   start(): void {
     const duration = roundDuration(this.scenarios[0]);
+    this.armed = null;
     this.state = {
       ...createInitialState(),
       phase: 'playing',
@@ -104,8 +113,50 @@ export class GameEngine {
   /** Возврат на стартовый экран. */
   reset(): void {
     this.stopTimer();
+    this.armed = null;
     this.state = createInitialState();
     this.emit();
+  }
+
+  /**
+   * Идёт ли время документа. Выключенное время не отменяет тика:
+   * прожитые секунды всё равно считаются, иначе в сводке партии
+   * оказался бы ноль.
+   */
+  setTimed(timed: boolean): void {
+    this.timed = timed;
+  }
+
+  isTimed(): boolean {
+    return this.timed;
+  }
+
+  /**
+   * Решение выбрано, но ещё не зачтено: пошло окно на «передумать».
+   * Пока оно идёт, время документа — это и есть остаток окна, поэтому
+   * счётчик и шкала в HUD показывают его без отдельного механизма.
+   */
+  armDecision(decision: Decision, windowMs: number): void {
+    if (this.state.phase !== 'playing' || this.armed !== null) return;
+    this.armed = decision;
+    this.state = { ...this.state, timeLeftMs: windowMs, roundDurationMs: windowMs };
+    this.startTimer();
+    this.emit();
+  }
+
+  /** Игрок передумал: окно закрывается, документ снова открыт. */
+  disarmDecision(): void {
+    if (this.armed === null) return;
+    this.armed = null;
+    const scenario = this.getScenario();
+    const duration = scenario ? roundDuration(scenario) : ROUND_DURATION_MS;
+    this.state = { ...this.state, timeLeftMs: duration, roundDurationMs: duration };
+    this.emit();
+  }
+
+  /** Выбранное, но не зачтённое решение; null — выбора нет. */
+  getArmed(): Decision | null {
+    return this.armed;
   }
 
   /**
@@ -222,6 +273,7 @@ export class GameEngine {
     }
 
     const duration = roundDuration(nextScenario);
+    this.armed = null;
     this.state = {
       ...this.state,
       phase: 'playing',
@@ -241,6 +293,7 @@ export class GameEngine {
   private finishRound(decision: Decision | null): void {
     const scenario = this.getScenario();
     if (!scenario || this.state.phase !== 'playing') return;
+    this.armed = null;
 
     const result = resolveRound(
       scenario,
@@ -278,15 +331,22 @@ export class GameEngine {
       const now = performance.now();
       const delta = now - this.lastTickAt;
       this.lastTickAt = now;
-      const timeLeftMs = Math.max(0, this.state.timeLeftMs - delta);
+      // Время уходит либо когда у документа есть лимит, либо когда идёт
+      // окно на «передумать». В остальных случаях тик только копит
+      // прожитое время партии.
+      const counting = this.timed || this.armed !== null;
+      const timeLeftMs = counting
+        ? Math.max(0, this.state.timeLeftMs - delta)
+        : this.state.timeLeftMs;
       this.state = {
         ...this.state,
         timeLeftMs,
         elapsedMs: this.state.elapsedMs + delta,
       };
 
-      if (timeLeftMs <= 0) {
-        this.finishRound(null);
+      if (counting && timeLeftMs <= 0) {
+        // Выбранное решение зачитывается; без выбора это истёкший документ.
+        this.finishRound(this.armed);
         return;
       }
       this.emit();

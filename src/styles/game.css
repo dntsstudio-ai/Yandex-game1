@@ -381,3 +381,13 @@ body.has-ui-case-tab .case-state {
   opacity: 0.5;
   pointer-events: none;
 }
+
+/* Документ без лимита времени: шкала заполнена целиком и приглушена,
+   иначе полная зелёная полоса читается как «время пошло». */
+.screen--game.is-untimed .timebar-fill {
+  opacity: 0.22;
+}
+
+.screen--game.is-untimed .hud-item--time .hud-value {
+  opacity: 0.6;
+}
