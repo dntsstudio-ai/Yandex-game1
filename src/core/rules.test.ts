@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scenarios } from '../data/scenarios';
+import { ROUND_COUNT, pickDeck } from './deck';
 import {
   ROUND_DURATION_MS,
   SCORING,
@@ -276,9 +277,9 @@ describe('звания', () => {
 });
 
 describe('контент', () => {
-  it('в игре 10 ситуаций с уникальными id', () => {
-    expect(scenarios).toHaveLength(10);
-    expect(new Set(scenarios.map((s) => s.id)).size).toBe(10);
+  it('набор больше одной партии, идентификаторы уникальны', () => {
+    expect(scenarios.length).toBeGreaterThanOrEqual(ROUND_COUNT);
+    expect(new Set(scenarios.map((s) => s.id)).size).toBe(scenarios.length);
   });
 
   it('всего не меньше 30 интерактивных элементов', () => {
@@ -303,10 +304,14 @@ describe('контент', () => {
     }
   });
 
-  it('время на документ не уменьшается по ходу игры', () => {
-    const limits = scenarios.map(roundDuration);
-    for (let i = 1; i < limits.length; i += 1) {
-      expect(limits[i]).toBeGreaterThanOrEqual(limits[i - 1]);
+  it('время на документ не уменьшается по ходу партии', () => {
+    // Порядок задаёт раздача, а не порядок объявления в файле:
+    // колода сортируется от коротких документов к длинным.
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const limits = pickDeck(scenarios).map(roundDuration);
+      for (let i = 1; i < limits.length; i += 1) {
+        expect(limits[i]).toBeGreaterThanOrEqual(limits[i - 1]);
+      }
     }
   });
 

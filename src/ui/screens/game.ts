@@ -1,9 +1,41 @@
 /** Экран проверки документа: HUD, папка дела, карточка документа, решения. */
 import { SCORING, STREAK, liveAccuracy, suspiciousIds } from '../../core/rules';
+import type { GameMode } from '../../core/settings';
 import type { Decision, GameState, Scenario } from '../../core/types';
 import { formatTime, h } from '../dom';
 import { renderDocument } from '../documentView';
 import { icon } from '../icons';
+
+/**
+ * Сколько времени даётся на «передумать» в режиме для зрелых.
+ * Десять секунд — достаточно, чтобы перечитать спорную строку, и мало,
+ * чтобы превратить паузу в способ отдохнуть от таймера.
+ */
+export const CONFIRM_MS = 10_000;
+
+/**
+ * Защита от прокликов: пока идёт этот интервал, повторное нажатие
+ * «подтвердить» или «изменить» игнорируется. Без неё двойной клик по
+ * «подтвердить» успевал открыть и тут же отменить отсчёт.
+ */
+const CLICK_GUARD_MS = 500;
+
+/**
+ * Подписи во время отсчёта — по убыванию оставшихся секунд.
+ * Смысл не в информации, а в сомнении: именно в эти секунды игрок
+ * последний раз может передумать.
+ */
+const CONFIRM_LINES: Array<{ from: number; text: string }> = [
+  { from: 10, text: 'Решение принято. Ещё можно передумать.' },
+  { from: 8, text: 'А вы уверены в своих ответах?' },
+  { from: 6, text: 'Ничего не осталось непрочитанным?' },
+  { from: 4, text: 'Через пару секунд изменить будет нельзя.' },
+  { from: 2, text: 'Ответы фиксируются…' },
+];
+
+export function confirmLine(secondsLeft: number): string {
+  return CONFIRM_LINES.find((line) => secondsLeft >= line.from)?.text ?? CONFIRM_LINES[CONFIRM_LINES.length - 1].text;
+}
 
 export interface GameScreenHandlers {
   onHotspot: (id: string, element: HTMLElement) => void;
@@ -13,6 +45,12 @@ export interface GameScreenHandlers {
   onHint: () => string | null;
   /** Переключение увеличения документа — нужно для звука. */
   onZoom: (zoomed: boolean) => void;
+  /** Выбран (или снят) вариант ответа в режиме для зрелых. */
+  onSelect?: (decision: Decision | null) => void;
+  /** Начался отсчёт подтверждения: время документа замирает. */
+  onConfirmStart?: () => void;
+  /** Отсчёт отменён кнопкой «изменить». */
+  onConfirmCancel?: () => void;
 }
 
 export interface GameScreen {
@@ -29,8 +67,10 @@ export function renderGameScreen(
   scenario: Scenario,
   total: number,
   handlers: GameScreenHandlers,
+  mode: GameMode = 'young',
 ): GameScreen {
-  const root = h('section', 'screen screen--game');
+  const mature = mode === 'mature';
+  const root = h('section', `screen screen--game screen--${mode}`);
   root.innerHTML = `
     <header class="hud">
       <div class="hud-stats">
@@ -82,9 +122,24 @@ export function renderGameScreen(
           </button>
         </div>
         <div class="actions-buttons">
-          <button type="button" class="btn btn--pass" data-decision="pass">ПРОПУСТИТЬ</button>
-          <button type="button" class="btn btn--stop" data-decision="stop">ОСТАНОВИТЬ</button>
+          <button type="button" class="btn btn--pass" data-decision="pass"
+            ${mature ? 'aria-pressed="false"' : ''}>ПРОПУСТИТЬ</button>
+          <button type="button" class="btn btn--stop" data-decision="stop"
+            ${mature ? 'aria-pressed="false"' : ''}>ОСТАНОВИТЬ</button>
         </div>
+        ${
+          mature
+            ? `<div class="confirm" data-confirm>
+                 <p class="confirm-line" data-confirm-line>Выберите решение по документу.</p>
+                 <span class="confirm-track" aria-hidden="true">
+                   <span class="confirm-fill" data-confirm-fill></span>
+                 </span>
+                 <button type="button" class="btn btn--confirm" data-action="confirm" disabled>
+                   ПОДТВЕРДИТЬ
+                 </button>
+               </div>`
+            : ''
+        }
       </footer>
     </div>
   `;
@@ -93,16 +148,137 @@ export function renderGameScreen(
   const docNode = renderDocument(scenario);
   slot?.appendChild(docNode);
 
+  // ---------- решение по документу ----------
+  // В режиме для молодых кнопка сразу закрывает документ. В режиме для
+  // зрелых она лишь выбирает вариант: зачёт происходит после отсчёта.
+  let locked = false;
+  let selected: Decision | null = null;
+  let confirmFrame = 0;
+  let confirmEndsAt = 0;
+  let lastGuardAt = 0;
+  let lastSecondShown = -1;
+
+  const decisionButtons = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-decision]'));
+  const confirmBox = root.querySelector<HTMLElement>('[data-confirm]');
+  const confirmButton = root.querySelector<HTMLButtonElement>('[data-action="confirm"]');
+  const confirmLineEl = root.querySelector<HTMLElement>('[data-confirm-line]');
+  const confirmFill = root.querySelector<HTMLElement>('[data-confirm-fill]');
+
   docNode.addEventListener('click', (event) => {
+    if (locked) return;
     const target = (event.target as HTMLElement).closest<HTMLElement>('[data-hotspot]');
     if (!target || target.classList.contains('is-done')) return;
     handlers.onHotspot(target.dataset.hotspot ?? '', target);
   });
 
-  root.querySelectorAll<HTMLButtonElement>('[data-decision]').forEach((button) => {
+  const select = (decision: Decision) => {
+    // Повторное нажатие по выбранному варианту снимает выбор: иначе
+    // передумать «ничего не выбирать» было бы нельзя.
+    selected = selected === decision ? null : decision;
+    for (const button of decisionButtons) {
+      const own = button.dataset.decision === 'stop' ? 'stop' : 'pass';
+      button.setAttribute('aria-pressed', String(own === selected));
+      button.classList.toggle('is-picked', own === selected);
+    }
+    if (confirmButton) confirmButton.disabled = selected === null;
+    if (confirmLineEl) {
+      confirmLineEl.textContent =
+        selected === null
+          ? 'Выберите решение по документу.'
+          : selected === 'stop'
+            ? 'Выбрано: остановить. Нажмите «подтвердить».'
+            : 'Выбрано: пропустить. Нажмите «подтвердить».';
+    }
+    handlers.onSelect?.(selected);
+  };
+
+  for (const button of decisionButtons) {
     button.addEventListener('click', () => {
-      handlers.onDecision(button.dataset.decision === 'stop' ? 'stop' : 'pass');
+      const decision: Decision = button.dataset.decision === 'stop' ? 'stop' : 'pass';
+      if (!mature) {
+        handlers.onDecision(decision);
+        return;
+      }
+      if (locked) return;
+      select(decision);
     });
+  }
+
+  /** Нажатие принято? Пока не истёк интервал защиты — нет. */
+  const guardPassed = (): boolean => {
+    const now = performance.now();
+    if (now - lastGuardAt < CLICK_GUARD_MS) return false;
+    lastGuardAt = now;
+    return true;
+  };
+
+  const stopCountdown = () => {
+    if (confirmFrame) cancelAnimationFrame(confirmFrame);
+    confirmFrame = 0;
+    lastSecondShown = -1;
+    if (confirmFill) confirmFill.style.transform = 'scaleX(0)';
+  };
+
+  /** Возврат к выбору: отсчёт откатывается и останавливается. */
+  const cancelConfirm = () => {
+    stopCountdown();
+    locked = false;
+    root.classList.remove('is-locked');
+    confirmBox?.classList.remove('is-counting');
+    for (const button of decisionButtons) button.disabled = false;
+    if (confirmButton) {
+      confirmButton.textContent = 'ПОДТВЕРДИТЬ';
+      confirmButton.classList.remove('btn--change');
+      confirmButton.disabled = selected === null;
+    }
+    if (confirmLineEl && selected) {
+      confirmLineEl.textContent =
+        selected === 'stop'
+          ? 'Выбрано: остановить. Нажмите «подтвердить».'
+          : 'Выбрано: пропустить. Нажмите «подтвердить».';
+    }
+    handlers.onConfirmCancel?.();
+  };
+
+  const tickConfirm = () => {
+    const left = Math.max(0, confirmEndsAt - performance.now());
+    if (confirmFill) confirmFill.style.transform = `scaleX(${(left / CONFIRM_MS).toFixed(4)})`;
+
+    const seconds = Math.ceil(left / 1000);
+    if (seconds !== lastSecondShown) {
+      lastSecondShown = seconds;
+      if (confirmLineEl) confirmLineEl.textContent = `${confirmLine(seconds)} · ${seconds}`;
+    }
+
+    if (left <= 0) {
+      stopCountdown();
+      const decision = selected;
+      if (decision) handlers.onDecision(decision);
+      return;
+    }
+    confirmFrame = requestAnimationFrame(tickConfirm);
+  };
+
+  const startConfirm = () => {
+    if (!selected) return;
+    locked = true;
+    root.classList.add('is-locked');
+    confirmBox?.classList.add('is-counting');
+    for (const button of decisionButtons) button.disabled = true;
+    if (confirmButton) {
+      confirmButton.textContent = 'ИЗМЕНИТЬ';
+      confirmButton.classList.add('btn--change');
+    }
+    confirmEndsAt = performance.now() + CONFIRM_MS;
+    lastSecondShown = -1;
+    handlers.onConfirmStart?.();
+    confirmFrame = requestAnimationFrame(tickConfirm);
+  };
+
+  confirmButton?.addEventListener('click', () => {
+    if (!guardPassed()) return;
+    if (locked) cancelConfirm();
+    else startConfirm();
   });
 
   root.querySelector('[data-action="settings"]')?.addEventListener('click', handlers.onSettings);
@@ -135,6 +311,8 @@ export function renderGameScreen(
   // ---------- подсказка ----------
   const hintButton = root.querySelector<HTMLButtonElement>('[data-action="hint"]');
   hintButton?.addEventListener('click', () => {
+    // Во время отсчёта подтверждения документ уже закрыт для правок.
+    if (locked) return;
     const target = handlers.onHint();
     if (!target) return;
     hintButton.disabled = true;
@@ -247,6 +425,7 @@ export function renderGameScreen(
     },
     destroy() {
       window.clearTimeout(streakTimer);
+      stopCountdown();
       window.removeEventListener('keydown', onKey);
     },
   };

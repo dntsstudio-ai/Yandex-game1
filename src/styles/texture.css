@@ -85,6 +85,12 @@ body::after {
   overflow: hidden;
 }
 
+/* У окна прокручивается середина, поэтому его собственный overflow
+   обрезает только по горизонтали: иначе длинный текст просто пропадал. */
+.modal {
+  overflow: visible;
+}
+
 .hud::before,
 .result-card::before,
 .final-inner::before,

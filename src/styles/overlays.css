@@ -1,0 +1,454 @@
+/* ============================================================
+   Слои поверх игры: модальные окна и плашка «нет связи».
+
+   Всё в этом файле живёт вне масштабируемой сцены (см. .overlay-host
+   в src/ui/app.ts). Поэтому здесь можно пользоваться dvh и vw: они
+   считаются от настоящего экрана, а не от виртуальной сцены 1440×780.
+   ============================================================ */
+.overlay-host {
+  position: relative;
+  z-index: 60;
+}
+
+/* ---------- Подсказка «текст продолжается ниже» ----------
+   Полоса кнопок выглядит концом окна, поэтому обрыв прокрутки над ней
+   помечается затемнением и стрелкой: иначе половину текста никто
+   не увидит. */
+.modal-foot {
+  position: relative;
+}
+
+.modal.has-more .modal-foot::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  bottom: 100%;
+  height: 40px;
+  background: linear-gradient(to top, var(--modal-bg, rgba(18, 22, 31, 0.98)), transparent);
+  pointer-events: none;
+}
+
+/* Подпись живёт в самой полосе кнопок, справа: над ней она наезжала
+   на обрезанную строку текста. */
+.modal-foot {
+  align-items: center;
+}
+
+.modal.has-more .modal-foot::after {
+  content: '↓ листайте дальше';
+  margin-left: auto;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+body.has-ui-panel-frame .modal {
+  --modal-bg: rgba(10, 13, 19, 0.98);
+}
+
+/* ---------- «О проекте» ---------- */
+.modal--about {
+  width: min(640px, 100%);
+}
+
+.about-lead {
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--text);
+  border-left: 2px solid var(--red);
+  padding-left: 14px;
+}
+
+.about-block {
+  display: grid;
+  gap: 8px;
+}
+
+.about-title {
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  font-weight: 700;
+}
+
+.about-block p {
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.about-facts {
+  display: grid;
+  gap: 8px;
+  margin: 2px 0 0;
+}
+
+.about-fact {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--radius-m);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+}
+
+.about-fact dt {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim, var(--text-soft));
+  opacity: 0.75;
+}
+
+.about-fact dd {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.4;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.about-note {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  opacity: 0.72;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.settings-note {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  text-align: center;
+}
+
+/* ---------- «Что это значит» ---------- */
+.modal--verdict {
+  width: min(660px, 100%);
+}
+
+.verdict-lead {
+  font-size: 0.95rem;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.verdict-card {
+  display: grid;
+  gap: 7px;
+  padding: 13px 15px;
+  border-radius: var(--radius-m);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--line);
+  /* Цвет уровня задаётся один раз и расходится по вложенным элементам. */
+  --verdict-tone: var(--text-soft);
+}
+
+.verdict-card--low { --verdict-tone: var(--red); }
+.verdict-card--mid { --verdict-tone: var(--amber); }
+.verdict-card--high { --verdict-tone: var(--green); }
+
+.verdict-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.verdict-caption {
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  font-weight: 700;
+}
+
+.verdict-value {
+  font-size: 0.82rem;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.verdict-scale {
+  display: flex;
+  gap: 3px;
+}
+
+.verdict-step {
+  flex: 1;
+  height: 6px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.verdict-step.is-filled {
+  background: var(--verdict-tone);
+}
+
+.verdict-band {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--verdict-tone);
+}
+
+.verdict-meaning {
+  font-size: 0.87rem;
+  line-height: 1.5;
+}
+
+.verdict-advice {
+  font-size: 0.87rem;
+  line-height: 1.5;
+  padding: 9px 11px;
+  border-radius: var(--radius-s, 8px);
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 2px solid var(--verdict-tone);
+}
+
+.verdict-advice b {
+  color: var(--text);
+}
+
+.verdict-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  opacity: 0.75;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+body.has-ui-icons .verdict-note .icon {
+  --icon-size: 16px;
+  flex: none;
+  margin-top: 2px;
+}
+
+/* ---------- Плашка «нет связи» ---------- */
+.net-guard {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(5, 7, 11, 0.88);
+  backdrop-filter: blur(6px);
+  animation: fade-in 0.2s var(--ease);
+}
+
+.net-guard[hidden] {
+  display: none;
+}
+
+.net-card {
+  width: min(400px, 100%);
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: clamp(18px, 4vw, 28px);
+  text-align: center;
+  border-radius: var(--radius-l);
+  background: linear-gradient(180deg, rgba(34, 22, 26, 0.96), rgba(18, 14, 18, 0.97));
+  border: 1px solid rgba(255, 77, 85, 0.45);
+  box-shadow: var(--shadow-card);
+}
+
+.net-icon {
+  width: 76px;
+  height: 66px;
+  fill: none;
+  stroke-linecap: round;
+}
+
+.net-wave,
+.net-cross {
+  stroke: var(--red);
+  stroke-width: 4.5;
+}
+
+.net-dot {
+  fill: var(--red);
+  stroke: none;
+}
+
+.net-cross-bg {
+  fill: #221419;
+  stroke: none;
+}
+
+.net-cross {
+  stroke-width: 5;
+}
+
+/* Волны гаснут от дальней к ближней: значок «теряет» сигнал. */
+.net-wave--1 { opacity: 0.25; }
+.net-wave--2 { opacity: 0.45; }
+.net-wave--3 { opacity: 0.7; }
+
+.net-title {
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: #ff9aa0;
+  letter-spacing: 0.02em;
+}
+
+.net-text {
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--text-soft);
+}
+
+.net-wait {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  opacity: 0.8;
+}
+
+.net-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.net-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: net-blink 1.2s infinite;
+}
+
+.net-dots i:nth-child(2) { animation-delay: 0.2s; }
+.net-dots i:nth-child(3) { animation-delay: 0.4s; }
+
+.net-retry {
+  margin-top: 4px;
+}
+
+@keyframes net-blink {
+  0%, 60%, 100% { opacity: 0.25; }
+  30% { opacity: 1; }
+}
+
+/* Пока плашка висит, игра не принимает нажатий и не шевелится:
+   иначе анимации продолжали бы крутиться за перекрытым экраном. */
+body.is-netblock .app-stage {
+  pointer-events: none;
+}
+
+body.is-netblock .app-stage *,
+body.is-netblock .app-stage *::before,
+body.is-netblock .app-stage *::after {
+  animation-play-state: paused !important;
+}
+
+/* ---------- Низкий экран: телефон в альбомной ориентации ----------
+   Высоты остаётся около трёхсот точек, поэтому окно ужимается по всем
+   отступам, а текст становится компактнее. Ширину не трогаем: места
+   по горизонтали как раз много. */
+@media (max-height: 560px) {
+  .overlay {
+    padding: 10px;
+  }
+
+  .modal {
+    /* Именно dvh, а не 100%: процент считается от высоты ячейки сетки,
+       а она задана содержимым — ограничение получалось круговым
+       и просто не применялось, окно уезжало за нижний край. */
+    max-height: calc(100dvh - 20px);
+    padding: 14px 18px;
+    gap: 10px;
+    border-radius: var(--radius-m);
+  }
+
+  .modal-title {
+    font-size: 0.82rem;
+    letter-spacing: 0.18em;
+  }
+
+  .modal-body {
+    gap: 10px;
+  }
+
+  .modal p,
+  .about-block p,
+  .verdict-meaning,
+  .verdict-advice {
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+
+  .about-lead {
+    font-size: 0.88rem;
+    padding-left: 11px;
+  }
+
+  .about-fact {
+    padding: 7px 10px;
+  }
+
+  .about-fact dd {
+    font-size: 0.85rem;
+  }
+
+  .verdict-card {
+    padding: 10px 12px;
+    gap: 5px;
+  }
+
+  .verdict-band {
+    font-size: 0.86rem;
+  }
+
+  .verdict-advice {
+    padding: 7px 9px;
+  }
+
+  .modal-foot .btn {
+    padding-block: 9px;
+  }
+
+  .net-card {
+    padding: 14px 20px;
+    gap: 7px;
+  }
+
+  .net-icon {
+    width: 54px;
+    height: 46px;
+  }
+
+  .net-title {
+    font-size: 0.9rem;
+  }
+
+  .net-text,
+  .net-wait {
+    font-size: 0.76rem;
+  }
+}
+
+/* Рамка-ассет на низком экране съедает почти всю высоту окна. */
+@media (max-height: 560px) {
+  body.has-ui-panel-frame .modal {
+    border-width: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .net-dots i {
+    animation: none;
+    opacity: 0.6;
+  }
+}

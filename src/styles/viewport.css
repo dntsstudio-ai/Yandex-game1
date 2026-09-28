@@ -204,3 +204,16 @@ body.is-fit .review-group ul {
     transform: rotate(-90deg);
   }
 }
+
+/* Кнопок на протоколе стало пять: в уменьшенном режиме они занимали
+   вторую строку и выталкивали карточку за нижний край сцены. */
+body.is-fit .final-actions {
+  gap: 7px;
+  margin-top: 4px;
+}
+
+body.is-fit .final-actions .btn {
+  padding: 9px 14px;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+}

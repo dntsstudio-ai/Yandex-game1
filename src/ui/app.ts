@@ -3,15 +3,20 @@
  * Экран перерисовывается только при смене фазы или номера ситуации,
  * значения HUD обновляются точечно на каждом кадре таймера.
  */
+import { pickDeck, readSeen, rememberSeen } from '../core/deck';
 import { GameEngine } from '../core/engine';
+import { createNetworkMonitor, type NetworkState } from '../core/network';
 import { settings } from '../core/settings';
 import { audioContext, setMasterVolume } from '../core/sound/context';
 import { music } from '../core/sound/music';
 import { sfx } from '../core/sound/sfx';
 import { voice } from '../core/sound/voice';
 import type { Decision, GameState } from '../core/types';
+import { scenarios as scenarioPool } from '../data/scenarios';
 import { h } from './dom';
+import { createNetGuard, type NetGuard } from './netGuard';
 import { renderAbout } from './screens/about';
+import { renderVerdict } from './screens/verdict';
 import { renderFinalScreen, type FinalScreen } from './screens/final';
 import { renderGameScreen, type GameScreen } from './screens/game';
 import { renderMistakes } from './screens/mistakes';
@@ -39,6 +44,15 @@ export class App {
    * пока оно на экране, партия ещё не начата.
    */
   private interlude: 'tutorial' | null = null;
+  /** Слой модальных окон: живёт вне масштабируемой сцены. */
+  private readonly overlayHost: HTMLElement;
+  private readonly netGuard: NetGuard;
+  /** Держим ли мы сейчас паузу движка из-за связи. */
+  private netHolding = false;
+  /** Озвучку остановила потеря связи — её же и возобновляем. */
+  private voiceHeld = false;
+  /** Идёт отсчёт подтверждения в режиме для зрелых: время документа стоит. */
+  private confirmHolding = false;
 
   constructor(host: HTMLElement, engine = new GameEngine()) {
     // Сцена фиксированного размера: в альбомном режиме телефона она
@@ -53,9 +67,60 @@ export class App {
     stage.appendChild(this.floatLayer);
     setupViewport(stage, stage);
 
+    // Окна и плашка связи монтируются в body: внутри сцены их position:
+    // fixed отсчитывался бы от неё, а не от экрана, и в уменьшенном
+    // альбомном режиме телефона они ужимались бы вместе со сценой.
+    this.overlayHost = h('div', 'overlay-host');
+    document.body.appendChild(this.overlayHost);
+
+    const monitor = createNetworkMonitor();
+    this.netGuard = createNetGuard(this.overlayHost, () => monitor.check());
+    monitor.subscribe((state) => this.onNetwork(state));
+
     setMasterVolume(settings.get().volume);
     this.engine.subscribe((state) => this.onState(state));
     this.playIntroSting();
+  }
+
+  /**
+   * Связь пропала или вернулась.
+   *
+   * Пауза снимается ровно один раз на каждую поставленную: движок
+   * считает паузы, и лишний resume() пустил бы время, пока плашка
+   * ещё висит на экране.
+   */
+  private onNetwork(state: NetworkState): void {
+    const blocked = state !== 'online';
+    this.netGuard.setState(state);
+    if (blocked === this.netHolding) return;
+    this.netHolding = blocked;
+
+    if (blocked) {
+      this.engine.pause();
+      music.duck(true);
+      if (voice.getState() === 'playing') {
+        voice.toggle();
+        this.voiceHeld = true;
+      }
+      return;
+    }
+
+    this.engine.resume();
+    music.duck(this.engine.getState().phase !== 'playing');
+    if (this.voiceHeld) {
+      this.voiceHeld = false;
+      if (voice.getState() === 'paused') voice.toggle();
+    }
+  }
+
+  /**
+   * Новая раздача. Ситуаций в наборе намного больше, чем игрок видит
+   * за партию, поэтому колода собирается перед каждым запуском.
+   */
+  private deal(): void {
+    const deck = pickDeck(scenarioPool, { seen: readSeen() });
+    this.engine.deal(deck);
+    rememberSeen(deck, scenarioPool.length);
   }
 
   /**
@@ -147,6 +212,12 @@ export class App {
     if (state.phase !== 'playing' && this.gameScreen) {
       this.gameScreen.destroy();
       this.gameScreen = null;
+      // Экран мог уйти посреди отсчёта подтверждения — пауза снимается
+      // вместе с ним, иначе она осталась бы висеть на следующей партии.
+      if (this.confirmHolding) {
+        this.confirmHolding = false;
+        this.engine.resume();
+      }
     }
 
     switch (state.phase) {
@@ -159,10 +230,11 @@ export class App {
       case 'start':
       default: {
         this.gameScreen = null;
-        const start = renderStartScreen(this.engine.getScenarios().length, {
+        const start = renderStartScreen(scenarioPool.length, {
           onStart: () => this.beginGame(),
           onAbout: () => this.openAbout(),
           onSettings: () => this.openSettings(),
+          onMode: () => sfx.play('click'),
         });
         this.menuScene = start.scene;
         this.host.appendChild(start.scene.root);
@@ -184,6 +256,9 @@ export class App {
     const scene = this.menuScene;
     if (!scene) {
       this.entering = false;
+      // Запасной путь без анимации меню: колоду всё равно нужно раздать,
+      // иначе партия пошла бы по всему набору целиком.
+      this.deal();
       this.engine.start();
       return;
     }
@@ -227,6 +302,7 @@ export class App {
     this.lastSecond = -1;
     // renderedKey сброшен, поэтому первый же кадр движка нарисует экран
     this.renderedKey = '';
+    this.deal();
     this.engine.start();
   }
 
@@ -274,13 +350,34 @@ export class App {
       },
       onZoom: () => sfx.play('paper'),
       onDecision: (decision: Decision) => {
+        // Отсчёт подтверждения держал время документа — снимаем паузу,
+        // иначе следующий документ начался бы с остановленным таймером.
+        if (this.confirmHolding) {
+          this.confirmHolding = false;
+          this.engine.resume();
+        }
         const correct = scenario.correctDecision === decision;
         sfx.play('stamp');
         sfx.play(correct ? 'good' : 'bad');
         this.engine.decide(decision);
       },
+      onSelect: (decision) => {
+        if (decision) sfx.play('click');
+      },
+      onConfirmStart: () => {
+        // Десять секунд на «передумать» не должны съедать время документа.
+        this.confirmHolding = true;
+        this.engine.pause();
+        sfx.play('stamp');
+      },
+      onConfirmCancel: () => {
+        if (!this.confirmHolding) return;
+        this.confirmHolding = false;
+        this.engine.resume();
+        sfx.play('paper');
+      },
       onSettings: () => this.openSettings(),
-    });
+    }, settings.get().mode);
 
     this.gameScreen = screen;
     screen.update(state, scenario, this.engine.getScenarios().length);
@@ -317,12 +414,14 @@ export class App {
           sfx.play('click');
           void music.start();
           this.lastSecond = -1;
+          this.deal();
           this.engine.start();
           this.fadeFromBlack();
         },
         onAbout: () => this.openAbout(),
         onSettings: () => this.openSettings(),
         onMistakes: () => this.openMistakes(state),
+        onExplain: () => this.openVerdict(),
         onCount: () => sfx.play('count'),
         onStamp: () => sfx.play('stamp'),
       },
@@ -335,23 +434,32 @@ export class App {
   /** Разбор ошибок поверх протокола. */
   private openMistakes(state: GameState): void {
     sfx.play('click');
-    const overlay = renderMistakes(state.results, this.engine.getScenarios(), () => {
-      sfx.play('click');
-      overlay.remove();
-    });
-    this.root.appendChild(overlay);
+    this.openOverlay(
+      renderMistakes(state.results, this.engine.getScenarios(), () => sfx.play('click')),
+    );
+  }
+
+  /** «Что это значит»: словесный разбор итога. */
+  private openVerdict(): void {
+    sfx.play('click');
+    this.openOverlay(renderVerdict(this.engine.getTotals(), () => sfx.play('click')));
   }
 
   private openAbout(): void {
     sfx.play('click');
-    const overlay = renderAbout(() => overlay.remove());
-    this.root.appendChild(overlay);
+    this.openOverlay(renderAbout(() => sfx.play('click')));
+  }
+
+  /** Модальные окна живут вне сцены — см. overlayHost. */
+  private openOverlay(node: HTMLElement): void {
+    this.overlayHost.appendChild(node);
   }
 
   private openSettings(): void {
     sfx.play('click');
-    const overlay = renderSettings(
-      () => overlay.remove(),
+    this.openOverlay(
+      renderSettings(
+      () => sfx.play('click'),
       (next) => {
         setMasterVolume(next.volume);
         music.setVolume(next.volume);
@@ -360,8 +468,8 @@ export class App {
         if (!next.voice) voice.stop();
         if (next.sound) sfx.play('click');
       },
+      ),
     );
-    this.root.appendChild(overlay);
   }
 
   /** Всплывающие очки рядом с местом клика; label заменяет число. */

@@ -507,6 +507,14 @@ body.is-fit .screen--final {
   margin-top: 2px;
 }
 
+/* Пять кнопок должны уместиться в одну строку: вторая строка выталкивает
+   протокол за нижний край экрана. */
+.screen--final .final-actions .btn {
+  padding: 11px 16px;
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+}
+
 /* ---------- строки протокола из ТЗ ---------- */
 .final-done {
   font-size: 0.62rem;

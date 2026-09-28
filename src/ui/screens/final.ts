@@ -17,6 +17,8 @@ export interface FinalHandlers {
   onRestart: () => void;
   /** Разбор ошибок: пропущенные признаки и лишние отметки. */
   onMistakes: () => void;
+  /** «Что это значит»: словесный разбор результата. */
+  onExplain: () => void;
   onAbout: () => void;
   onSettings: () => void;
   /** Тик счётчика во время анимации индекса чистоты. */
@@ -238,7 +240,8 @@ export function renderFinalScreen(
 
       <div class="final-actions">
         <button type="button" class="btn btn--primary" data-action="restart">ИГРАТЬ СНОВА</button>
-        <button type="button" class="btn btn--ghost" data-action="mistakes">ПОКАЗАТЬ, ГДЕ Я ОШИБСЯ</button>
+        <button type="button" class="btn btn--ghost" data-action="explain">ЧТО ЭТО ЗНАЧИТ?</button>
+        <button type="button" class="btn btn--ghost" data-action="mistakes">ГДЕ Я ОШИБСЯ</button>
         <button type="button" class="btn btn--ghost" data-action="about">О ПРОЕКТЕ</button>
         <button type="button" class="btn btn--ghost" data-action="settings">НАСТРОЙКИ</button>
       </div>
@@ -247,6 +250,7 @@ export function renderFinalScreen(
 
   root.querySelector('[data-action="restart"]')?.addEventListener('click', handlers.onRestart);
   root.querySelector('[data-action="mistakes"]')?.addEventListener('click', handlers.onMistakes);
+  root.querySelector('[data-action="explain"]')?.addEventListener('click', handlers.onExplain);
   root.querySelector('[data-action="about"]')?.addEventListener('click', handlers.onAbout);
   root.querySelector('[data-action="settings"]')?.addEventListener('click', handlers.onSettings);
 

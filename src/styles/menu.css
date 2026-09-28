@@ -690,3 +690,18 @@ body.menu-settled:not(.menu-exit) .menu-ticker {
     animation: blackout-in 0.25s linear forwards !important;
   }
 }
+
+/* Переключатель режима входит в общий такт появления меню:
+   между девизом и кнопками. */
+.menu-live .mode-switch {
+  animation: rise-in 0.8s var(--ease) 3.05s both;
+}
+
+body.menu-live.menu-logo-intro .mode-switch {
+  animation: rise-in 0.8s var(--ease) 2.5s both;
+}
+
+.menu-skip .mode-switch {
+  animation-delay: 0s !important;
+  animation-duration: 0.25s !important;
+}

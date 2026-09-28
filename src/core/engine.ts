@@ -46,10 +46,22 @@ export class GameEngine {
   private listeners = new Set<Listener>();
   private tickHandle: number | null = null;
   private lastTickAt = 0;
-  private readonly scenarios: readonly Scenario[];
+  private scenarios: readonly Scenario[];
+  /** Сколько раз игру попросили остановиться (пауза, окно, потеря связи). */
+  private holds = 0;
 
   constructor(scenarios: readonly Scenario[] = defaultScenarios) {
     if (scenarios.length === 0) throw new Error('Нужна хотя бы одна игровая ситуация');
+    this.scenarios = scenarios;
+  }
+
+  /**
+   * Заменяет колоду партии. Вызывается перед стартом: ситуаций в наборе
+   * больше, чем игрок видит за раз, и раздача собирается заново.
+   */
+  deal(scenarios: readonly Scenario[]): void {
+    if (scenarios.length === 0) throw new Error('Нужна хотя бы одна игровая ситуация');
+    if (this.state.phase === 'playing') return;
     this.scenarios = scenarios;
   }
 
@@ -94,6 +106,29 @@ export class GameEngine {
     this.stopTimer();
     this.state = createInitialState();
     this.emit();
+  }
+
+  /**
+   * Останавливает отсчёт времени, не меняя фазы.
+   *
+   * Причин может быть несколько одновременно — например, пропала связь,
+   * а игрок в это время подтверждает ответ, — поэтому паузы считаются:
+   * игра поедет дальше, когда снимут последнюю.
+   */
+  pause(): void {
+    this.holds += 1;
+    if (this.holds === 1) this.stopTimer();
+  }
+
+  /** Снимает одну паузу; время пойдёт, когда не останется ни одной. */
+  resume(): void {
+    if (this.holds === 0) return;
+    this.holds -= 1;
+    if (this.holds === 0 && this.state.phase === 'playing') this.startTimer();
+  }
+
+  isPaused(): boolean {
+    return this.holds > 0;
   }
 
   /** Клик по интерактивному элементу документа. */
@@ -235,6 +270,9 @@ export class GameEngine {
   private startTimer(): void {
     this.stopTimer();
     if (typeof window === 'undefined') return;
+    // Партия могла начаться при снятом с игры времени — например, игрок
+    // нажал «играть снова», пока держится плашка о потере связи.
+    if (this.holds > 0) return;
     this.lastTickAt = performance.now();
     const tick = () => {
       const now = performance.now();

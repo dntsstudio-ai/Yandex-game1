@@ -6,7 +6,8 @@
  * Документы без ошибок в список не попадают.
  */
 import type { RoundResult, Scenario } from '../../core/types';
-import { escapeHtml, h } from '../dom';
+import { escapeHtml } from '../dom';
+import { createModal } from '../modal';
 import { icon } from '../icons';
 
 interface Entry {
@@ -52,9 +53,8 @@ export function renderMistakes(
   onClose: () => void,
 ): HTMLElement {
   const entries = collect(results, scenarios);
-  const overlay = h('div', 'overlay');
 
-  const body = entries.length === 0
+  const list = entries.length === 0
     ? `<p class="mistakes-empty">${icon('check')}Ошибок нет: все признаки найдены, решения верные.</p>`
     : entries
         .map(
@@ -98,18 +98,13 @@ export function renderMistakes(
         )
         .join('');
 
-  overlay.innerHTML = `
-    <div class="modal modal--mistakes" role="dialog" aria-modal="true" aria-label="Разбор ошибок">
-      <h2 class="modal-title">ГДЕ Я ОШИБСЯ</h2>
-      <div class="mistakes-list">${body}</div>
-      <button type="button" class="btn btn--primary" data-action="close">ПОНЯТНО</button>
-    </div>
-  `;
-
-  overlay.querySelector('[data-action="close"]')?.addEventListener('click', onClose);
-  overlay.addEventListener('click', (event) => {
-    if (event.target === overlay) onClose();
-  });
-
-  return overlay;
+  return createModal(
+    {
+      title: 'ГДЕ Я ОШИБСЯ',
+      label: 'Разбор ошибок',
+      variant: 'modal--mistakes',
+      body: `<div class="mistakes-list">${list}</div>`,
+    },
+    onClose,
+  ).root;
 }

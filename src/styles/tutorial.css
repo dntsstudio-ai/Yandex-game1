@@ -206,19 +206,15 @@ body.has-ui-icons .novel-clock .icon {
 }
 
 /* ============ Разбор ошибок ============ */
+/* Раскладку окна задаёт общая оболочка (styles/overlays.css),
+   здесь остаётся только ширина и содержимое списка. */
 .modal--mistakes {
   width: min(620px, 100%);
-  max-height: min(78vh, 720px);
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  gap: 14px;
 }
 
 .mistakes-list {
   display: grid;
   gap: 14px;
-  overflow-y: auto;
-  padding-right: 4px;
   text-align: left;
 }
 

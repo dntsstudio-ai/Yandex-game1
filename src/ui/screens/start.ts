@@ -1,5 +1,7 @@
 /** Стартовый экран. */
+import { ROUND_COUNT } from '../../core/deck';
 import { SCORING } from '../../core/rules';
+import { settings, type GameMode } from '../../core/settings';
 import { h } from '../dom';
 import { createMenuScene, type MenuScene } from '../menuScene';
 import { MEDIA, assetUrl, findAsset } from '../../core/assets';
@@ -8,12 +10,29 @@ export interface StartScreenHandlers {
   onStart: () => void;
   onAbout: () => void;
   onSettings: () => void;
+  /** Переключение режима проверки — нужно для звука. */
+  onMode?: (mode: GameMode) => void;
 }
+
+/** Описание режимов: одно место на меню и на подпись под переключателем. */
+const MODES: Array<{ id: GameMode; title: string; caption: string }> = [
+  {
+    id: 'young',
+    title: 'ДЛЯ МОЛОДЫХ',
+    caption: 'Решение засчитывается сразу по нажатию кнопки.',
+  },
+  {
+    id: 'mature',
+    title: 'ДЛЯ ЗРЕЛЫХ',
+    caption: 'Ответ сначала выбирается, потом подтверждается. 10 секунд, чтобы передумать.',
+  },
+];
 
 export function renderStartScreen(
   scenarioCount: number,
   handlers: StartScreenHandlers,
 ): { root: HTMLElement; scene: MenuScene } {
+  const current = settings.get().mode;
   const root = h('section', 'screen screen--start');
   root.innerHTML = `
     <div class="start-inner">
@@ -26,6 +45,20 @@ export function renderStartScreen(
       <h1 class="start-title"><span>КРАСНЫЙ</span><span class="title-accent">ФЛАГ</span></h1>
       <p class="start-tagline">«Заметь то, что другие могут не заметить.»</p>
 
+      <div class="mode-switch" role="radiogroup" aria-label="Режим проверки">
+        <span class="mode-caption">РЕЖИМ ПРОВЕРКИ</span>
+        <div class="mode-options">
+          ${MODES.map(
+            (item) => `
+            <button type="button" class="mode-option" role="radio" data-mode="${item.id}"
+              aria-checked="${current === item.id}">
+              <b>${item.title}</b>
+            </button>`,
+          ).join('')}
+        </div>
+        <p class="mode-hint" data-mode-hint>${MODES.find((item) => item.id === current)?.caption ?? ''}</p>
+      </div>
+
       <div class="start-actions">
         <button type="button" class="btn btn--primary" data-action="start">НАЧАТЬ ПРОВЕРКУ</button>
         <button type="button" class="btn btn--ghost" data-action="about">О ПРОЕКТЕ</button>
@@ -35,10 +68,30 @@ export function renderStartScreen(
       <ul class="start-rules">
         <li><span class="dot dot--green"></span>Признак риска: +${SCORING.hit}</li>
         <li><span class="dot dot--red"></span>Ошибочный клик: ${SCORING.falsePositive}</li>
-        <li><span class="dot dot--blue"></span>${scenarioCount} документов · таймер на каждый</li>
+        <li><span class="dot dot--blue"></span>${ROUND_COUNT} документов из ${scenarioCount} · таймер на каждый</li>
       </ul>
     </div>
   `;
+
+  // ---------- переключатель режима ----------
+  const hint = root.querySelector<HTMLElement>('[data-mode-hint]');
+  const options = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-mode]'));
+  const setMode = (mode: GameMode) => {
+    settings.update({ mode });
+    for (const option of options) {
+      option.setAttribute('aria-checked', String(option.dataset.mode === mode));
+    }
+    if (hint) hint.textContent = MODES.find((item) => item.id === mode)?.caption ?? '';
+    handlers.onMode?.(mode);
+  };
+
+  for (const option of options) {
+    option.addEventListener('click', () => {
+      const mode: GameMode = option.dataset.mode === 'mature' ? 'mature' : 'young';
+      if (mode === settings.get().mode) return;
+      setMode(mode);
+    });
+  }
 
   // Логотип-картинка заменяет нарисованный флаг и текстовый заголовок:
   // название уже есть на самой картинке, показывать его дважды нельзя.
